@@ -19,6 +19,11 @@ interface GeminiResponseData {
   transcript_text: string;
 }
 
+interface VideoSegment {
+  time: number;
+  text: string;
+}
+
 // Image 컴포넌트는 사용되지 않으므로 제거했습니다.
 // import Image from "next/image";
 
@@ -39,31 +44,31 @@ export default function Home() {
     if (!transcript) return [];
 
     const lines = transcript.split('\n').filter(line => line.trim() !== '');
-    const parsed: { time: number; text: string }[] = [];
-    let currentSegment: { time: number; text: string } | null = null;
+    const parsed: VideoSegment[] = [];
+    let currentSegment: VideoSegment | null = null;
 
     lines.forEach((line) => {
-      const match = line.match(/^\[(\d{2}):(\d{2})\]\s*(.*)/);
+      const match = line.match(/^\\[(\d{2}):(\d{2})\\]\\s*(.*)/);
 
       if (match) {
         if (currentSegment) {
-          parsed.push(currentSegment);
+          parsed.push(currentSegment as VideoSegment);
         }
         const minutes = parseInt(match[1], 10);
         const seconds = parseInt(match[2], 10);
         const timeInSeconds = minutes * 60 + seconds;
         currentSegment = { time: timeInSeconds, text: match[3].trim() };
       } else if (currentSegment) {
-        currentSegment.text += ' ' + line.trim();
+        (currentSegment as VideoSegment).text += ' ' + line.trim();
       }
     });
 
     if (currentSegment) {
-      parsed.push(currentSegment);
+      parsed.push(currentSegment as VideoSegment);
     }
 
     if (parsed.length === 0 && transcript.trim() !== '') {
-      let cleanedText = transcript.trim().replace(/\[(\d{2}:\d{2})\]/g, '').trim();
+      const cleanedText = transcript.trim().replace(/\[(\d{2}):(\d{2})\]/g, '').trim();
       if (cleanedText) {
         parsed.push({ time: 0, text: cleanedText });
       }
@@ -128,8 +133,12 @@ export default function Home() {
       const data: GeminiResponseData = await response.json();
       setGeminiAnalysis(data.analysis);
       setTranscript(data.transcript_text);
-    } catch (err: any) {
-      setError(err.message || 'An unknown error occurred');
+    } catch (err: unknown) {
+      let errorMessage = 'An unknown error occurred';
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -242,7 +251,7 @@ export default function Home() {
 
             {activeTab === 'transcript' && (transcript ? (
               <div ref={transcriptContainerRef} className="text-gray-700">
-                {parsedTranscript.map((segment: { time: number; text: string }, index) => {
+                {parsedTranscript.map((segment: VideoSegment, index) => {
                   const isCurrent = index === activeSegmentIndex;
                   return (
                     <p

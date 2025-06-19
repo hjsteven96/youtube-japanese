@@ -4,8 +4,12 @@ export async function POST(req: NextRequest) {
   let requestBody;
   try {
     requestBody = await req.json();
-  } catch (error) {
-    return NextResponse.json({ error: 'Invalid JSON in request body' }, { status: 400 });
+  } catch (_error: unknown) {
+    let errorMessage = 'Invalid JSON in request body.';
+    if (_error instanceof Error) {
+      errorMessage = _error.message;
+    }
+    return NextResponse.json({ error: errorMessage }, { status: 400 });
   }
 
   const { youtubeUrl } = requestBody;
@@ -61,17 +65,21 @@ export async function POST(req: NextRequest) {
       } else {
         parsedContent = { analysis: { summary: 'No content found.', keywords: [], slang_expressions: [] }, transcript_text: 'No transcript found.' };
       }
-    } catch (parseError: unknown) {
-      console.error("Failed to parse Gemini response as JSON:", parseError);
+    } catch (_parseError: unknown) {
+      console.error("Failed to parse Gemini response as JSON:", _parseError);
       let errorMessage = 'An unknown parsing error occurred.';
-      if (parseError instanceof Error) {
-        errorMessage = parseError.message;
+      if (_parseError instanceof Error) {
+        errorMessage = _parseError.message;
       }
       return NextResponse.json({ error: 'Failed to parse Gemini API response as JSON', details: errorMessage }, { status: 500 });
     }
 
     return NextResponse.json(parsedContent);
-  } catch (error) {
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  } catch (_error: unknown) {
+    let errorMessage = 'Internal server error.';
+    if (_error instanceof Error) {
+      errorMessage = _error.message;
+    }
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 } 
