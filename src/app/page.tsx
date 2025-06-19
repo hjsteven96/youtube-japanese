@@ -38,7 +38,7 @@ export default function Home() {
   const [error, setError] = useState('');
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
-  const [activeTab, setActiveTab] = useState<'analysis' | 'transcript'>('analysis');
+  const [activeTab, setActiveTab] = useState<'analysis' | 'transcript' | 'questions'>('analysis');
   const [user, setUser] = useState<User | null>(null);
 
   const playerRef = useRef<ReactPlayer>(null);
@@ -202,7 +202,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center py-10">
+    <div className="min-h-screen bg-gray-100 flex flex-col items-center py-10">
       <h1 className="text-4xl font-bold text-gray-800 mb-8">YouTube 영상 분석기</h1>
       
       <div className="mb-4 text-center">
@@ -279,24 +279,32 @@ export default function Home() {
           )}
         </div>
 
-        <div className="lg:w-1/2 bg-white p-8 rounded-lg shadow-md">
-          <div className="flex mb-4 border-b border-gray-200">
+        <div className="lg:w-1/2 bg-white p-8 rounded-lg shadow-md flex flex-col h-full min-h-[500px]">
+          <div className="flex space-x-4 mb-4">
             <button
-              className={`py-2 px-4 text-sm font-medium text-center ${activeTab === 'analysis' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'} focus:outline-none`}
+              className={`px-4 py-2 rounded-md ${activeTab === 'analysis' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'}`}
               onClick={() => setActiveTab('analysis')}
             >
               분석 결과
             </button>
             <button
-              className={`py-2 px-4 text-sm font-medium text-center ${activeTab === 'transcript' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'} focus:outline-none`}
+              className={`px-4 py-2 rounded-md ${activeTab === 'transcript' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'}`}
               onClick={() => setActiveTab('transcript')}
             >
               트랜스크립트
             </button>
+            {geminiAnalysis?.main_questions && geminiAnalysis.main_questions.length > 0 && (
+              <button
+                className={`px-4 py-2 rounded-md ${activeTab === 'questions' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'}`}
+                onClick={() => setActiveTab('questions')}
+              >
+                주요 질문
+              </button>
+            )}
           </div>
 
-          <div className="tab-content max-h-96 overflow-y-auto pr-2">
-            {activeTab === 'analysis' && (geminiAnalysis ? (
+          <div className="flex-1 overflow-y-auto p-4 bg-white rounded-md shadow-inner">
+            {activeTab === 'analysis' && geminiAnalysis ? (
               <div className="text-gray-700">
                 <h3 className="text-xl font-semibold mb-2">요약:</h3>
                 <p className="mb-4">{geminiAnalysis.summary}</p>
@@ -326,23 +334,8 @@ export default function Home() {
                     </ul>
                   </div>
                 )}
-
-                {geminiAnalysis.main_questions && geminiAnalysis.main_questions.length > 0 && (
-                  <div className="mb-4">
-                    <h3 className="text-xl font-semibold mb-2">주요 질문:</h3>
-                    <ul className="list-disc list-inside pl-4">
-                      {geminiAnalysis.main_questions.map((question, index) => (
-                        <li key={index} className="mb-1">{question}</li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
               </div>
-            ) : (
-              <p className="text-gray-500">영상 분석 결과가 여기에 표시됩니다.</p>
-            ))}
-
-            {activeTab === 'transcript' && (transcript ? (
+            ) : activeTab === 'transcript' && parsedTranscript.length > 0 ? (
               <div ref={transcriptContainerRef} className="text-gray-700">
                 {parsedTranscript.map((segment: VideoSegment, index) => {
                   const isCurrent = index === activeSegmentIndex;
@@ -352,15 +345,26 @@ export default function Home() {
                       className={`mb-2 cursor-pointer transition-colors duration-200 ${isCurrent ? 'highlighted-segment' : 'hover:text-blue-600'}`}
                       onClick={() => handleSeek(segment.time)}
                     >
-                      <span className="font-semibold text-blue-500">[{String(Math.floor(segment.time / 60)).padStart(2, '0')}:{String(segment.time % 60).padStart(2, '0')}]</span>
+                      <span className="font-semibold text-blue-500">[{String(Math.floor(segment.time / 60)).padStart(2, '0')}:{String(Math.floor(segment.time % 60)).padStart(2, '0')}]</span>
                       {' '}{segment.text}
                     </p>
                   );
                 })}
               </div>
+            ) : activeTab === 'questions' && geminiAnalysis?.main_questions && geminiAnalysis.main_questions.length > 0 ? (
+              <div className="text-gray-700">
+                <h3 className="text-xl font-semibold mb-2">주요 질문:</h3>
+                <ul className="list-disc list-inside pl-4">
+                  {geminiAnalysis.main_questions.map((question, index) => (
+                    <li key={index} className="mb-1">{question}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : activeTab === 'questions' && !geminiAnalysis?.main_questions?.length ? (
+              <p className="text-gray-500">주요 질문이 없습니다.</p>
             ) : (
-              <p className="text-gray-500">트랜스크립트가 여기에 표시됩니다.</p>
-            ))}
+              <p className="text-gray-500">내용이 없습니다. YouTube URL을 입력하고 분석을 시작하세요.</p>
+            )}
           </div>
         </div>
       </div>
