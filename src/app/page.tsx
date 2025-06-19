@@ -1,770 +1,768 @@
-'use client';
-
-import { useState, useRef, useEffect, useMemo } from 'react';
-import ReactPlayer from 'react-player';
-import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
-import { auth } from '../lib/firebase';
-import { GoogleGenAI, Modality, Session, LiveServerMessage } from '@google/genai';
+"use client";
+import { useState, useRef, useEffect, useMemo } from "react";
+import ReactPlayer from "react-player";
+import {
+    GoogleAuthProvider,
+    signInWithPopup,
+    signOut,
+    onAuthStateChanged,
+    User,
+} from "firebase/auth";
+import { auth, db } from "../lib/firebase";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { useGeminiLiveConversation } from "../lib/useGeminiLiveConversation";
 
 interface SlangExpression {
-  expression: string;
-  meaning: string;
+    expression: string;
+    meaning: string;
 }
 
 interface VideoAnalysis {
-  summary: string;
-  keywords: string[];
-  slang_expressions: SlangExpression[];
-  main_questions: string[];
+    summary: string;
+    keywords: string[];
+    slang_expressions: SlangExpression[];
+    main_questions: string[];
 }
 
 interface GeminiResponseData {
-  analysis: VideoAnalysis;
-  transcript_text: string;
+    analysis: VideoAnalysis;
+    transcript_text: string;
 }
 
 interface VideoSegment {
-  time: number;
-  text: string;
+    time: number;
+    text: string;
 }
 
-// Blob_2 타입 가드를 위한 임시 인터페이스 정의 (실제 Blob_2는 genai.d.ts에 있음)
-interface Blob_2_temp {
-  mimeType?: string;
-  data?: string;
-}
-
-// message.data가 Blob_2 타입인지 확인하는 타입 가드 함수
-function isBlob2(data: any): data is Blob_2_temp {
-  return data && typeof data === 'object' && 'mimeType' in data && 'data' in data;
-}
-
-// Image 컴포넌트는 사용되지 않으므로 제거했습니다.
-// import Image from "next/image";
+// Modern Loading Component
+const LoadingAnimation = () => (
+    <div className="flex flex-col items-center justify-center p-8">
+        <div className="relative w-32 h-32">
+            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 animate-spin">
+                <div className="absolute inset-2 bg-white rounded-full"></div>
+            </div>
+            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 opacity-50 blur-xl animate-pulse"></div>
+        </div>
+        <div className="mt-6 space-y-2">
+            <div className="h-2 w-48 bg-gradient-to-r from-blue-300 to-purple-300 rounded-full animate-pulse"></div>
+            <div className="h-2 w-36 bg-gradient-to-r from-purple-300 to-pink-300 rounded-full animate-pulse mx-auto"></div>
+            <p className="text-gray-600 text-center mt-4 font-medium">
+                AI가 영상을 분석하고 있어요...
+            </p>
+            <p className="text-gray-500 text-center text-sm">
+                잠시만 기다려주세요 ✨
+            </p>
+        </div>
+    </div>
+);
 
 export default function Home() {
-  const [youtubeUrl, setYoutubeUrl] = useState('');
-  const [geminiAnalysis, setGeminiAnalysis] = useState<VideoAnalysis | null>(null);
-  const [transcript, setTranscript] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [activeTab, setActiveTab] = useState<'analysis' | 'transcript' | 'questions'>('analysis');
-  const [user, setUser] = useState<User | null>(null);
+    const [youtubeUrl, setYoutubeUrl] = useState("");
+    const [geminiAnalysis, setGeminiAnalysis] = useState<VideoAnalysis | null>(
+        null
+    );
+    const [transcript, setTranscript] = useState("");
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
+    const [isPlaying, setIsPlaying] = useState(false);
+    const [currentTime, setCurrentTime] = useState(0);
+    const [activeTab, setActiveTab] = useState<
+        "analysis" | "transcript" | "questions"
+    >("questions");
+    const [user, setUser] = useState<User | null>(null);
 
-  // New states for live audio conversation
-  const [isRecording, setIsRecording] = useState(false);
-  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
-  const audioChunks = useRef<Blob[]>([]);
-  const [geminiLiveSession, setGeminiLiveSession] = useState<Session | null>(null);
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const [selectedQuestion, setSelectedQuestion] = useState<string | null>(null);
+    const playerRef = useRef<ReactPlayer>(null);
+    const transcriptContainerRef = useRef<HTMLDivElement>(null);
 
-  const playerRef = useRef<ReactPlayer>(null);
-  const transcriptContainerRef = useRef<HTMLDivElement>(null);
-  const mediaStreamRef = useRef<MediaStream | null>(null); // To store the MediaStream for cleanup
+    const parsedTranscript = useMemo(() => {
+        const safeTranscript = String(transcript || "");
 
-  // For Gemini Live Audio Playback
-  const audioQueue = useRef<string[]>([]);
-  const audioContext = useRef<AudioContext | null>(null);
-  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+        const lines = safeTranscript
+            .split("\n")
+            .filter((line) => line.trim() !== "");
 
-  const parsedTranscript = useMemo(() => {
-    const safeTranscript = String(transcript || '');
+        const parsed: VideoSegment[] = [];
+        let currentSegment: VideoSegment | null = null;
 
-    const lines = safeTranscript.split('\n').filter(line => line.trim() !== '');
+        lines.forEach((line) => {
+            const match = line.match(/^\[(\d{2}):(\d{2})\]\s*(.*)/);
 
-    const parsed: VideoSegment[] = [];
-    let currentSegment: VideoSegment | null = null;
+            if (match) {
+                if (currentSegment) {
+                    parsed.push(currentSegment as VideoSegment);
+                }
+                const minutes = parseInt(match[1], 10);
+                const seconds = parseInt(match[2], 10);
+                const timeInSeconds = minutes * 60 + seconds;
+                currentSegment = { time: timeInSeconds, text: match[3].trim() };
+            } else if (currentSegment) {
+                (currentSegment as VideoSegment).text += " " + line.trim();
+            }
+        });
 
-    lines.forEach((line) => {
-      const match = line.match(/^\[(\d{2}):(\d{2})\]\s*(.*)/);
-
-      if (match) {
         if (currentSegment) {
-          parsed.push(currentSegment as VideoSegment);
+            parsed.push(currentSegment as VideoSegment);
         }
-        const minutes = parseInt(match[1], 10);
-        const seconds = parseInt(match[2], 10);
-        const timeInSeconds = minutes * 60 + seconds;
-        currentSegment = { time: timeInSeconds, text: match[3].trim() };
-      } else if (currentSegment) {
-        (currentSegment as VideoSegment).text += ' ' + line.trim();
-      }
-    });
 
-    if (currentSegment) {
-      parsed.push(currentSegment as VideoSegment);
-    }
-
-    if (parsed.length === 0 && safeTranscript.trim() !== '') {
-      const cleanedText = safeTranscript.trim().replace(/^\[(\d{2}):(\d{2})\]/g, '').trim();
-      if (cleanedText) {
-        parsed.push({ time: 0, text: cleanedText });
-      }
-    }
-    return parsed;
-  }, [transcript]);
-
-  const activeSegmentIndex = useMemo(() => {
-    return parsedTranscript.findIndex((segment, index) => {
-      const nextSegment = parsedTranscript[index + 1];
-      const isActive = currentTime >= segment.time && (!nextSegment || currentTime < nextSegment.time);
-      return isActive;
-    });
-  }, [currentTime, parsedTranscript]);
-
-  useEffect(() => {
-    if (activeSegmentIndex === -1 || !transcriptContainerRef.current) {
-      return;
-    }
-
-    const activeSegmentElement = transcriptContainerRef.current.children[activeSegmentIndex] as HTMLElement;
-
-    if (activeSegmentElement) {
-      activeSegmentElement.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-      });
-    }
-  }, [activeSegmentIndex]);
-
-  const handleSeek = (seconds: number) => {
-    if (playerRef.current) {
-      playerRef.current.seekTo(seconds, 'seconds');
-      setIsPlaying(true);
-    }
-  };
-
-  const handleGoogleSignIn = async () => {
-    if (!auth) {
-      setError('Firebase Auth not initialized.');
-      return;
-    }
-    const provider = new GoogleAuthProvider();
-    try {
-      await signInWithPopup(auth, provider);
-    } catch (err: unknown) {
-      let errorMessage = 'Google Sign-In failed.';
-      if (err instanceof Error) {
-        errorMessage += `: ${err.message}`;
-      }
-      setError(errorMessage);
-    }
-  };
-
-  const handleGoogleSignOut = async () => {
-    if (!auth) {
-      setError('Firebase Auth not initialized.');
-      return;
-    }
-    try {
-      await signOut(auth);
-      setGeminiAnalysis(null);
-      setTranscript('');
-      setYoutubeUrl('');
-      setCurrentTime(0);
-      setActiveTab('analysis');
-    } catch (err: unknown) {
-      let errorMessage = 'Google Sign-Out failed.';
-      if (err instanceof Error) {
-        errorMessage += `: ${err.message}`;
-      }
-      setError(errorMessage);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setGeminiAnalysis(null);
-    setTranscript('');
-    setError('');
-    setCurrentTime(0);
-    setActiveTab('analysis'); // Reset to analysis tab on new submission
-
-    try {
-      const response = await fetch('/api/transcript', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ youtubeUrl }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to fetch analysis');
-      }
-
-      const data: GeminiResponseData = await response.json();
-      setGeminiAnalysis(data.analysis);
-      if (typeof data.transcript_text === 'string') {
-        setTranscript(data.transcript_text);
-        console.log("Received transcript_text:", data.transcript_text);
-      } else {
-        setTranscript('');
-        console.log("Received non-string transcript_text:", data.transcript_text);
-      }
-    } catch (err: unknown) {
-      let errorMessage = 'An unknown error occurred';
-      if (err instanceof Error) {
-        errorMessage = err.message;
-      }
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleStopConversation = () => {
-    console.log("handleStopConversation called.");
-    console.log("Current mediaRecorder state:", mediaRecorder);
-    console.log("Current mediaStreamRef.current state:", mediaStreamRef.current);
-
-    audioChunks.current = [];
-    setIsRecording(false);
-    setSelectedQuestion(null);
-    setIsSpeaking(false); // Stop AI speaking indicator
-
-    // MediaRecorder와 MediaStream 트랙을 명시적으로 중지
-    console.log("Attempting to stop MediaRecorder and MediaStream.");
-    if (mediaRecorder) {
-      console.log("Stopping MediaRecorder instance...");
-      mediaRecorder.stop(); // This should stop the MediaRecorder
-      // The onstop callback will also be triggered, which sends audioStreamEnd.
-      // Moved audioStreamEnd to be sent directly in handleStopConversation
-      // if (geminiLiveSession) {
-      //   console.log("Sending audioStreamEnd to Gemini Live.");
-      //   geminiLiveSession.sendRealtimeInput({ audioStreamEnd: true });
-      // }
-      setMediaRecorder(null); // Nullify recorder state immediately after stopping
-    }
-    
-    // Ensure MediaStream tracks are stopped.
-    // This is crucial for releasing microphone access.
-    if (mediaStreamRef.current) {
-        console.log("Stopping MediaStream tracks...");
-        mediaStreamRef.current.getTracks().forEach(track => track.stop());
-        mediaStreamRef.current = null; // Nullify stream ref
-    }
-
-    // Close Gemini Live session
-    if (geminiLiveSession) {
-        console.log("Closing Gemini Live session...");
-        geminiLiveSession.close(); // Explicitly close the session
-        setGeminiLiveSession(null); // Nullify session state
-        // Send audioStreamEnd when conversation explicitly stopped by user
-        // This needs to be sent before closing the session to ensure it's received.
-        console.log("Sending audioStreamEnd to Gemini Live due to explicit stop.");
-        geminiLiveSession.sendRealtimeInput({ audioStreamEnd: true });
-    }
-
-    // Close AudioContext
-    if (audioContext.current) {
-        console.log("Closing AudioContext...");
-        audioContext.current.close();
-        audioContext.current = null;
-    }
-    
-    audioQueue.current = []; // Clear any pending audio in queue
-    setIsPlayingAudio(false); // Stop audio playback indicator
-    console.log("Conversation stopped and all resources cleaned up.");
-  };
-
-  const handleStartConversation = async (question: string) => {
-    setSelectedQuestion(question);
-    setActiveTab('questions'); // Ensure questions tab is active
-    setError('');
-    setIsSpeaking(false);
-    if (!transcript || !geminiAnalysis) {
-      console.error("Transcript or Gemini Analysis not available.");
-      return;
-    }
-
-    try {
-      // 1. Get ephemeral token from backend
-      console.log("Fetching ephemeral token...");
-      const tokenRes = await fetch("/api/gemini-live-token");
-      if (!tokenRes.ok) {
-        const errorText = await tokenRes.text();
-        throw new Error(`Failed to fetch ephemeral token: ${tokenRes.status} ${errorText}`);
-      }
-      const { token } = await tokenRes.json();
-      console.log("Ephemeral token fetched.");
-
-      // 2. Request microphone access
-      console.log("Requesting microphone access...");
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaStreamRef.current = stream;
-      console.log("Microphone access granted.");
-
-      // 3. Initialize MediaRecorder and start recording
-      console.log("Initializing MediaRecorder...");
-      // Use audio/webm as it's a common format for MediaRecorder, but we'll convert to PCM before sending.
-      const recorder = new MediaRecorder(stream, { mimeType: "audio/webm;codecs=opus" });
-      setMediaRecorder(recorder);
-
-      recorder.ondataavailable = async (event) => {
-        if (event.data.size > 0) {
-          console.log(`Audio data available from MediaRecorder: ${event.data.size} bytes, mimeType: ${event.data.type}`);
-          if (geminiLiveSession) {
-            try {
-              // Create an AudioContext if not already created (for input processing too)
-              // Ensure audioContext.current is not closed by playback
-              if (!audioContext.current || audioContext.current.state === 'closed') {
-                audioContext.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-                console.log("AudioContext created for audio input processing.");
-              }
-
-              // Decode the audio blob from MediaRecorder (e.g., webm/opus)
-              const arrayBuffer = await event.data.arrayBuffer();
-              const audioBuffer = await audioContext.current.decodeAudioData(arrayBuffer);
-
-              // Resample and convert to 16-bit PCM at 16kHz
-              const targetSampleRate = 16000;
-              const numberOfChannels = audioBuffer.numberOfChannels; // Maintain original channels
-              
-              // Create an OfflineAudioContext for resampling
-              const offlineContext = new OfflineAudioContext(
-                numberOfChannels,
-                audioBuffer.duration * targetSampleRate,
-                targetSampleRate
-              );
-
-              const source = offlineContext.createBufferSource();
-              source.buffer = audioBuffer;
-              source.connect(offlineContext.destination);
-              source.start();
-
-              const renderedBuffer = await offlineContext.startRendering();
-
-              // Get raw PCM data (Float32Array) and convert to Int16Array
-              const pcmData = renderedBuffer.getChannelData(0); // Get data from the first channel (assuming mono if only one channel needed)
-              
-              // Convert Float32 to Int16
-              const int16Array = new Int16Array(pcmData.length);
-              for (let i = 0; i < pcmData.length; i++) {
-                int16Array[i] = Math.max(-1, Math.min(1, pcmData[i])) * 0x7FFF; // Scale float to int16 range
-              }
-
-              // Convert Int16Array to Base64 string
-              // Using a DataView to handle byte order (little-endian for PCM)
-              const dataView = new DataView(new ArrayBuffer(int16Array.length * 2));
-              for (let i = 0; i < int16Array.length; i++) {
-                  dataView.setInt16(i * 2, int16Array[i], true); // true for little-endian
-              }
-              const base64Audio = btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(dataView.buffer))));
-
-              await geminiLiveSession.sendRealtimeInput({
-                audio: { data: base64Audio, mimeType: `audio/pcm;rate=${targetSampleRate}` }, // Send as PCM
-              });
-              console.log("Sent converted PCM audio data to Gemini Live API. Base64 Length:", base64Audio.length, "bytes.");
-
-            } catch (conversionError) {
-              console.error("Error converting or sending audio data to Gemini Live:", conversionError);
+        if (parsed.length === 0 && safeTranscript.trim() !== "") {
+            const cleanedText = safeTranscript
+                .trim()
+                .replace(/^\[(\d{2}):(\d{2})\]/g, "")
+                .trim();
+            if (cleanedText) {
+                parsed.push({ time: 0, text: cleanedText });
             }
-          }
         }
-      };
+        return parsed;
+    }, [transcript]);
 
-      recorder.onstop = () => {
-        console.log("MediaRecorder stopped.");
-        // Optional: Send audioStreamEnd when recording stops for good (e.g., if user clicks stop)
-        if (geminiLiveSession) {
-          console.log("Sending audioStreamEnd to Gemini Live.");
-          geminiLiveSession.sendRealtimeInput({ audioStreamEnd: true });
+    const activeSegmentIndex = useMemo(() => {
+        return parsedTranscript.findIndex((segment, index) => {
+            const nextSegment = parsedTranscript[index + 1];
+            const isActive =
+                currentTime >= segment.time &&
+                (!nextSegment || currentTime < nextSegment.time);
+            return isActive;
+        });
+    }, [currentTime, parsedTranscript]);
+
+    useEffect(() => {
+        if (activeSegmentIndex === -1 || !transcriptContainerRef.current) {
+            return;
         }
-      };
 
-      // 4. Connect to Gemini Live API
-      console.log("Connecting to Gemini Live API...");
-      const genai = new GoogleGenAI({ apiKey: token, apiVersion: "v1alpha" });
-      const newSession = await genai.live.connect({
-        model: "gemini-2.5-flash-preview-native-audio-dialog", // Changed model for native audio output
-        callbacks: {
-          onopen: () => {
-            console.log("Gemini Live session opened.");
-            setIsRecording(true);
-            recorder.start(1000); // Start recording and collect 1-second chunks
-            console.log("Recording started for Gemini Live.");
-          },
-          onmessage: async (message: LiveServerMessage) => {
-            console.log("Gemini raw message:", message);
+        const activeSegmentElement = transcriptContainerRef.current.children[
+            activeSegmentIndex
+        ] as HTMLElement;
 
-            if (message.serverContent) {
-              console.log("Received serverContent:", JSON.stringify(message.serverContent, null, 2));
-
-              if (message.serverContent.outputTranscription && message.serverContent.outputTranscription.text) {
-                console.log("Received output transcription:", message.serverContent.outputTranscription.text);
-              }
-
-              // Hypothesis: modelTurn might contain audio data directly, or provide context
-              if (message.serverContent.modelTurn) {
-                console.log("Received server content (modelTurn):", JSON.stringify(message.serverContent.modelTurn, null, 2));
-                // If modelTurn also contains audio data (e.g., as a direct 'audio' property)
-                // This is a speculative check, based on the log {modelTurn: {…}}
-                const modelTurnAudio = (message.serverContent.modelTurn as any)?.audio; // Use 'any' for now to inspect structure
-                if (modelTurnAudio && modelTurnAudio.mimeType?.startsWith("audio/") && modelTurnAudio.data) {
-                  audioQueue.current.push(modelTurnAudio.data);
-                  console.log("Audio data from modelTurn pushed to queue. Current queue size:", audioQueue.current.length);
-                  if (!isPlayingAudio) {
-                    console.log("Not currently playing audio, initiating playback from modelTurn.");
-                    playNextAudio();
-                  } else {
-                    console.log("Audio already playing, queuing audio chunk from modelTurn.");
-                  }
-                } else {
-                  console.log("ModelTurn does not contain audio data or incomplete audio data:", modelTurnAudio);
-                }
-              }
-
-              if (message.serverContent.turnComplete) {
-                console.log("Turn complete. Is speaking:", isSpeaking);
-                if (audioQueue.current.length > 0) {
-                  console.log("Audio queue not empty. Attempting to play next audio.");
-                  playNextAudio();
-                } else {
-                  console.log("Audio queue empty after turn complete, stopping playback.");
-                  setIsPlayingAudio(false);
-                }
-              }
-
-            } else if (message.data) {
-              console.log("Received data type:", typeof message.data);
-              // This is the expected path for audio blobs from the general API guide.
-              if (isBlob2(message.data)) { // Using the type guard function
-                const audioBlob = message.data as Blob_2_temp;
-                if (audioBlob.mimeType?.startsWith("audio/")) {
-                  console.log("Received audio blob data (mimeType):", audioBlob.mimeType);
-                  console.log("Received audio blob data (base64 length):", audioBlob.data?.length);
-                  if (audioBlob.data) {
-                    audioQueue.current.push(audioBlob.data);
-                    console.log("Audio data pushed to queue. Current queue size:", audioQueue.current.length);
-                    if (!isPlayingAudio) { // Use state variable directly
-                      console.log("Not currently playing audio, initiating playback.");
-                      playNextAudio();
-                    } else {
-                      console.log("Audio already playing, queuing audio chunk.");
-                    }
-                  }
-                } else {
-                  console.log("Received non-audio blob data with mimeType:", audioBlob.mimeType);
-                }
-              } else {
-                console.log("Received unhandled message data format (not Blob2):", message.data);
-              }
-            } else if (message.setupComplete) {
-                console.log("Gemini Live session setup complete.");
-            } else if (message.goAway) {
-                console.log("GoAway message received. Time left:", message.goAway.timeLeft);
-            } else if (message.sessionResumptionUpdate) {
-                console.log("Session Resumption Update:", message.sessionResumptionUpdate);
-            }
-            else {
-              console.log("Received unhandled message type:", message);
-            }
-          },
-          onerror: (e: ErrorEvent) => {
-            console.error("Gemini Live Error:", e);
-            handleStopConversation();
-          },
-          onclose: (e: CloseEvent) => {
-            console.log("Gemini Live session closed:", e.reason);
-            // Do not call handleStopConversation here to avoid redundant cleanup and potential issues
-            // Resources are cleaned up when the user explicitly stops the conversation, or when an error occurs
-            // If the close event is due to a GoAway message, the session will be resumed if implemented.
-          },
-        },
-        config: {
-          responseModalities: [Modality.AUDIO], // Set to AUDIO for audio responses
-          outputAudioTranscription: {},
-          // You might want to add inputAudioTranscription if you want to receive transcriptions of user's audio input
-          // inputAudioTranscription: {},
-        },
-      });
-      setGeminiLiveSession(newSession);
-      setSelectedQuestion(question);
-
-      // 5. Send initial system instruction and question here, after session is open and newSession is initialized
-      newSession.sendClientContent({
-        turns: [{
-          role: "user",
-          parts: [{ text: `You are a helpful assistant summarizing YouTube videos. Here is the full transcript of the video: ${transcript}. The user\'s main question is: \"${question}\". Based on the video transcript and the main question, engage in an audio conversation with the user, providing your responses as spoken audio. Provide concise and helpful answers.` }],
-        }]
-      });
-
-    } catch (error) {
-      console.error("Error starting conversation:", error);
-      handleStopConversation();
-    }
-  };
-
-  const playNextAudio = async () => {
-    console.log("Attempting to play next audio. Queue size:", audioQueue.current.length, "Is playing:", isPlayingAudio);
-    if (audioQueue.current.length > 0 && !isPlayingAudio) { // Use state variable directly
-      setIsPlayingAudio(true);
-      const audioDataB64 = audioQueue.current.shift();
-      if (audioDataB64) {
-        console.log("Playing next audio chunk (base64 length):", audioDataB64.length);
-        try {
-          // Decode Base64 string to ArrayBuffer
-          const binaryString = atob(audioDataB64);
-          const len = binaryString.length;
-          const bytes = new Uint8Array(len);
-          for (let i = 0; i < len; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-          }
-          const arrayBuffer = bytes.buffer;
-
-          if (!audioContext.current) {
-            audioContext.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-            console.log("AudioContext created.");
-          }
-
-          // Create AudioBuffer from ArrayBuffer
-          const audioBuffer = await audioContext.current.decodeAudioData(arrayBuffer);
-          const source = audioContext.current.createBufferSource();
-          source.buffer = audioBuffer;
-          source.connect(audioContext.current.destination);
-
-          source.onended = () => {
-            console.log("Audio chunk finished playing.");
-            playNextAudio(); // Play next chunk
-          };
-
-          source.start();
-          console.log("Audio playback started.");
-        } catch (playError) {
-          console.error("Error playing audio chunk:", playError);
-          setIsPlayingAudio(false); // Reset playback state on error
+        if (activeSegmentElement) {
+            activeSegmentElement.scrollIntoView({
+                behavior: "smooth",
+                block: "center",
+            });
         }
-      } else {
-        console.log("No audio data in queue to play or audioDataB64 is null/undefined.");
-        setIsPlayingAudio(false); // No more audio, stop playback indicator
-      }
-    } else if (audioQueue.current.length === 0 && isPlayingAudio) {
-      console.log("Audio queue empty, stopping playback indicator.");
-      setIsPlayingAudio(false);
-    } else {
-      console.log("playNextAudio: No audio in queue or already playing. Queue size:", audioQueue.current.length, "Is playing:", isPlayingAudio);
-    }
-  };
+    }, [activeSegmentIndex]);
 
-  useEffect(() => {
-    if (auth) {
-      const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-        setUser(currentUser);
-      });
-      return () => unsubscribe();
-    }
-  }, []);
-
-  useEffect(() => {
-    // Clean up on component unmount
-    return () => {
-      handleStopConversation();
+    const handleSeek = (seconds: number) => {
+        if (playerRef.current) {
+            playerRef.current.seekTo(seconds, "seconds");
+            setIsPlaying(true);
+        }
     };
-  }, []);
 
-  return (
-    <div className="min-h-screen bg-gray-100 flex flex-col items-center py-10">
-      <h1 className="text-4xl font-bold text-gray-800 mb-8">YouTube 영상 분석기</h1>
-      
-      <div className="mb-4 text-center">
-        {user ? (
-          <div className="flex items-center space-x-2">
-            {user.photoURL && (
-              <img src={user.photoURL} alt="User Avatar" className="w-8 h-8 rounded-full" />
-            )}
-            <p className="text-gray-700">환영합니다, {user.displayName || user.email}!</p>
-            <button
-              onClick={handleGoogleSignOut}
-              className="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-3 rounded focus:outline-none focus:shadow-outline"
-            >
-              로그아웃
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={handleGoogleSignIn}
-            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-          >
-            Google 계정으로 로그인
-          </button>
-        )}
-      </div>
+    const handleGoogleSignIn = async () => {
+        if (!auth) {
+            setError("Firebase Auth not initialized.");
+            return;
+        }
+        const provider = new GoogleAuthProvider();
+        try {
+            await signInWithPopup(auth, provider);
+        } catch (err: unknown) {
+            let errorMessage = "Google Sign-In failed.";
+            if (err instanceof Error) {
+                errorMessage += `: ${err.message}`;
+            }
+            setError(errorMessage);
+        }
+    };
 
-      <form onSubmit={handleSubmit} className="bg-white p-8 rounded-lg shadow-md w-full max-w-md mb-8">
-        <div className="mb-4">
-          <label htmlFor="youtubeUrl" className="block text-gray-700 text-sm font-bold mb-2">
-            YouTube URL:
-          </label>
-          <input
-            type="url"
-            id="youtubeUrl"
-            className="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-            placeholder="예: https://www.youtube.com/watch?v=xxxxxxxxxxx"
-            value={youtubeUrl}
-            onChange={(e) => {
-              setYoutubeUrl(e.target.value);
-              setGeminiAnalysis(null);
-              setTranscript('');
-              setError('');
-            }}
-            required
-          />
-        </div>
-        <button
-          type="submit"
-          className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full"
-          disabled={loading}
-        >
-          {loading ? '분석 중...' : '영상 분석하기'}
-        </button>
-        {error && <p className="text-red-500 text-sm mt-4">에러: {error}</p>}
-      </form>
+    const handleGoogleSignOut = async () => {
+        if (!auth) {
+            setError("Firebase Auth not initialized.");
+            return;
+        }
+        try {
+            await signOut(auth);
+            setGeminiAnalysis(null);
+            setTranscript("");
+            setYoutubeUrl("");
+            setCurrentTime(0);
+            setActiveTab("analysis");
+        } catch (err: unknown) {
+            let errorMessage = "Google Sign-Out failed.";
+            if (err instanceof Error) {
+                errorMessage += `: ${err.message}`;
+            }
+            setError(errorMessage);
+        }
+    };
 
-      <div className="flex flex-col lg:flex-row w-full max-w-6xl gap-8">
-        <div className="lg:w-1/2 bg-white p-4 rounded-lg shadow-md flex justify-center items-center aspect-video">
-          {youtubeUrl ? (
-            <ReactPlayer
-              ref={playerRef}
-              url={youtubeUrl}
-              controls
-              width="100%"
-              height="100%"
-              playing={isPlaying}
-              onPlay={() => setIsPlaying(true)}
-              onPause={() => setIsPlaying(false)}
-              onEnded={() => setIsPlaying(false)}
-              onProgress={({ playedSeconds }) => setCurrentTime(playedSeconds)}
-            />
-          ) : (
-            <p className="text-gray-500">내용이 없습니다. YouTube URL을 입력하고 분석을 시작하세요.</p>
-          )}
-        </div>
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
 
-        <div className="lg:w-1/2 bg-white p-8 rounded-lg shadow-md flex flex-col h-full min-h-[500px]">
-          <div className="flex space-x-4 mb-4">
-            <button
-              className={`px-4 py-2 rounded-md ${activeTab === 'analysis' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'}`}
-              onClick={() => setActiveTab('analysis')}
-            >
-              분석 결과
-            </button>
-            <button
-              className={`px-4 py-2 rounded-md ${activeTab === 'transcript' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'}`}
-              onClick={() => setActiveTab('transcript')}
-            >
-              트랜스크립트
-            </button>
-            {geminiAnalysis?.main_questions && geminiAnalysis.main_questions.length > 0 && (
-              <button
-                className={`px-4 py-2 rounded-md ${activeTab === 'questions' ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-800'}`}
-                onClick={() => setActiveTab('questions')}
-              >
-                주요 질문
-              </button>
-            )}
-          </div>
+        if (youtubeUrl.trim() === "") {
+            setError("");
+            setLoading(false);
+            return;
+        }
 
-          <div className="flex-1 overflow-y-auto p-4 bg-white rounded-md shadow-inner">
-            {activeTab === 'analysis' && geminiAnalysis ? (
-              <div className="text-gray-700">
-                <h3 className="text-xl font-semibold mb-2">요약:</h3>
-                <p className="mb-4">{geminiAnalysis.summary}</p>
+        const youtubeRegex =
+            /^(https?:\/\/(?:www\.|m\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})(?:\S+)?)$/;
+        if (!youtubeRegex.test(youtubeUrl)) {
+            setError("유효한 YouTube 영상 URL을 입력해주세요.");
+            setLoading(false);
+            return;
+        }
 
-                {geminiAnalysis.keywords && geminiAnalysis.keywords.length > 0 && (
-                  <div className="mb-4">
-                    <h3 className="text-xl font-semibold mb-2">주요 단어:</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {geminiAnalysis.keywords.map((keyword, index) => (
-                        <span key={index} className="bg-blue-100 text-blue-800 text-sm font-medium px-2.5 py-0.5 rounded-full">
-                          {keyword}
-                        </span>
-                      ))}
+        setLoading(true);
+        setGeminiAnalysis(null);
+        setTranscript("");
+        setError("");
+        setCurrentTime(0);
+        setActiveTab("analysis");
+
+        if (!user) {
+            window.alert("로그인 후 이용해주세요.");
+            setLoading(false);
+            return;
+        }
+
+        const docId = encodeURIComponent(youtubeUrl).replace(/\./g, "_");
+
+        try {
+            const docRef = doc(db, "videoAnalyses", docId);
+            const docSnap = await getDoc(docRef);
+
+            if (docSnap.exists()) {
+                console.log("Cached data found in Firestore.");
+                const cachedData = docSnap.data() as GeminiResponseData;
+                setGeminiAnalysis(cachedData.analysis);
+                setTranscript(cachedData.transcript_text);
+
+                await new Promise((resolve) => setTimeout(resolve, 3000));
+
+                setLoading(false);
+                return;
+            }
+
+            console.log("No cached data found. Fetching from Gemini API.");
+            const response = await fetch("/api/transcript", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ youtubeUrl }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || "Failed to fetch analysis");
+            }
+
+            const data: GeminiResponseData = await response.json();
+            setGeminiAnalysis(data.analysis);
+            if (typeof data.transcript_text === "string") {
+                setTranscript(data.transcript_text);
+                console.log("Received transcript_text:", data.transcript_text);
+            } else {
+                setTranscript("");
+                console.log(
+                    "Received non-string transcript_text:",
+                    data.transcript_text
+                );
+            }
+
+            await setDoc(docRef, {
+                youtubeUrl: youtubeUrl,
+                analysis: data.analysis,
+                transcript_text: data.transcript_text,
+                timestamp: new Date().toISOString(),
+            });
+            console.log("Data saved to Firestore.");
+        } catch (err: unknown) {
+            let errorMessage = "An unknown error occurred";
+            if (err instanceof Error) {
+                errorMessage = err.message;
+            }
+            setError(errorMessage);
+        }
+        setLoading(false);
+    };
+
+    const {
+        isRecording,
+        isPlayingAudio,
+        selectedQuestion,
+        handleStartConversation,
+        handleStopConversation,
+    } = useGeminiLiveConversation({
+        transcript,
+        geminiAnalysis,
+        setError,
+        setActiveTab,
+    });
+
+    useEffect(() => {
+        if (auth) {
+            const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+                setUser(currentUser);
+            });
+            return () => unsubscribe();
+        }
+    }, []);
+
+    return (
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex flex-col items-center py-10">
+            <div className="text-center mb-8">
+                <h1 className="text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">
+                    YouTube로 배우는 영어
+                </h1>
+                <p className="text-gray-600 text-lg">
+                    AI와 함께 영상을 분석하고 실전 영어를 학습해보세요 🎓
+                </p>
+            </div>
+
+            <div className="mb-6">
+                {user ? (
+                    <div className="flex items-center space-x-3 bg-white rounded-full px-5 py-2 shadow-md">
+                        {user.photoURL && (
+                            <img
+                                src={user.photoURL}
+                                alt="User Avatar"
+                                className="w-10 h-10 rounded-full border-2 border-gradient-to-r from-blue-400 to-purple-400"
+                            />
+                        )}
+                        <p className="text-gray-700 font-medium">
+                            안녕하세요, {user.displayName || user.email}님! 👋
+                        </p>
+                        <button
+                            onClick={handleGoogleSignOut}
+                            className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-semibold py-2 px-4 rounded-full transition-all duration-300 transform hover:scale-105"
+                        >
+                            로그아웃
+                        </button>
                     </div>
-                  </div>
-                )}
-
-                {geminiAnalysis.slang_expressions && geminiAnalysis.slang_expressions.length > 0 && (
-                  <div className="mb-4">
-                    <h3 className="text-xl font-semibold mb-2">구어체 표현:</h3>
-                    <ul>
-                      {geminiAnalysis.slang_expressions.map((slang, index) => (
-                        <li key={index} className="mb-1">
-                          <strong>{slang.expression}:</strong> {slang.meaning}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            ) : activeTab === 'transcript' && parsedTranscript.length > 0 ? (
-              <div ref={transcriptContainerRef} className="text-gray-700">
-                {parsedTranscript.map((segment: VideoSegment, index) => {
-                  const isCurrent = index === activeSegmentIndex;
-                  return (
-                    <p
-                      key={index}
-                      className={`mb-2 cursor-pointer transition-colors duration-200 ${isCurrent ? 'highlighted-segment' : 'hover:text-blue-600'}`}
-                      onClick={() => handleSeek(segment.time)}
-                    >
-                      <span className="font-semibold text-blue-500">[{String(Math.floor(segment.time / 60)).padStart(2, '0')}:{String(Math.floor(segment.time % 60)).padStart(2, '0')}]</span>
-                      {' '}{segment.text}
-                    </p>
-                  );
-                })}
-              </div>
-            ) : activeTab === 'questions' && geminiAnalysis?.main_questions && geminiAnalysis.main_questions.length > 0 ? (
-              <div className="text-gray-700">
-                <h3 className="text-xl font-semibold mb-2">주요 질문:</h3>
-                <ul className="list-disc list-inside pl-4">
-                  {geminiAnalysis.main_questions.map((question, index) => (
-                    <li key={index} className="mb-1">{question}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : activeTab === 'questions' && !geminiAnalysis?.main_questions?.length ? (
-              <p className="text-gray-500">주요 질문이 없습니다.</p>
-            ) : null}
-
-            {activeTab === 'questions' && geminiAnalysis?.main_questions && geminiAnalysis.main_questions.length > 0 && (
-              <div className="text-gray-700 mt-4">
-                <h3 className="text-xl font-semibold mb-2">AI와 대화하기:</h3>
-                <ul className="list-disc list-inside pl-4">
-                  {geminiAnalysis.main_questions.map((question, index) => (
-                    <li key={index} className="mb-2 flex items-center justify-between">
-                      <span>{question}</span>
-                      <button
-                        onClick={() => handleStartConversation(question)}
-                        className="ml-4 bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-3 rounded focus:outline-none focus:shadow-outline"
-                        disabled={isRecording || isSpeaking}
-                      >
-                        대화하기
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-                {isRecording ? (
-                  <button
-                    onClick={handleStopConversation}
-                    className="mt-4 bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full"
-                  >
-                    녹음 중지
-                  </button>
                 ) : (
-                  <> {/* Render nothing if not recording, or if button is disabled */}</>
+                    <button
+                        onClick={handleGoogleSignIn}
+                        className="bg-white hover:bg-gray-50 text-gray-700 font-semibold py-3 px-6 rounded-full shadow-lg flex items-center space-x-3 transition-all duration-300 transform hover:scale-105"
+                    >
+                        <svg className="w-6 h-6" viewBox="0 0 24 24">
+                            <path
+                                fill="#4285F4"
+                                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                            />
+                            <path
+                                fill="#34A853"
+                                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                            />
+                            <path
+                                fill="#FBBC05"
+                                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                            />
+                            <path
+                                fill="#EA4335"
+                                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                            />
+                        </svg>
+                        <span>Google로 시작하기</span>
+                    </button>
                 )}
-                {isRecording && <p className="mt-2 text-green-600">녹음 중...</p>}
-                {isSpeaking && <p className="mt-2 text-blue-600">AI 응답 재생 중...</p>}
-              </div>
+            </div>
+
+            <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md mb-8 transition-all duration-300 hover:shadow-2xl">
+                <div className="mb-6">
+                    <label
+                        htmlFor="youtubeUrl"
+                        className="block text-gray-700 text-sm font-semibold mb-3 flex items-center"
+                    >
+                        <span className="mr-2">🎬</span> YouTube URL 입력
+                    </label>
+                    <input
+                        type="url"
+                        id="youtubeUrl"
+                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none transition-all duration-300 text-gray-700"
+                        placeholder="https://www.youtube.com/watch?v=..."
+                        value={youtubeUrl}
+                        onChange={(e) => {
+                            setYoutubeUrl(e.target.value);
+                            setGeminiAnalysis(null);
+                            setTranscript("");
+                            setError("");
+                        }}
+                        onKeyPress={(e) => {
+                            if (e.key === "Enter") {
+                                handleSubmit(e);
+                            }
+                        }}
+                    />
+                </div>
+                <button
+                    onClick={handleSubmit}
+                    className="w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={loading}
+                >
+                    {loading ? "분석 중..." : "AI로 영상 분석하기 ✨"}
+                </button>
+                {error && (
+                    <p className="text-red-500 text-sm mt-4 flex items-center">
+                        <span className="mr-2">⚠️</span> {error}
+                    </p>
+                )}
+            </div>
+
+            {youtubeUrl && (geminiAnalysis || loading) && (
+                <div className="w-full max-w-6xl bg-white p-8 rounded-2xl shadow-xl flex flex-col lg:flex-row lg:space-x-8">
+                    <div className="w-full lg:w-1/2 mb-6 lg:mb-0">
+                        <div className="mb-4">
+                            {youtubeUrl ? (
+                                <div className="relative w-full pt-[56.25%] rounded-xl overflow-hidden shadow-lg">
+                                    <ReactPlayer
+                                        ref={playerRef}
+                                        url={youtubeUrl}
+                                        controls={true}
+                                        playing={isPlaying}
+                                        width="100%"
+                                        height="100%"
+                                        className="absolute inset-0"
+                                        onPlay={() => setIsPlaying(true)}
+                                        onPause={() => setIsPlaying(false)}
+                                        onEnded={() => setIsPlaying(false)}
+                                        onProgress={({ playedSeconds }) =>
+                                            setCurrentTime(playedSeconds)
+                                        }
+                                    />
+                                </div>
+                            ) : (
+                                <div className="aspect-video bg-gray-100 rounded-xl flex items-center justify-center">
+                                    <p className="text-gray-500">
+                                        YouTube URL을 입력하고 분석을 시작하세요
+                                        📺
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="w-full lg:w-1/2 flex flex-col h-[600px]">
+                        {loading && !geminiAnalysis ? (
+                            <div className="flex-1 flex justify-center items-center bg-gray-50 rounded-xl">
+                                <LoadingAnimation />
+                            </div>
+                        ) : geminiAnalysis ? (
+                            <>
+                                <div className="flex space-x-2 mb-4 border-b-2 border-gray-100">
+                                    {youtubeUrl && (
+                                        <button
+                                            className={`px-6 py-3 font-semibold rounded-t-lg transition-all duration-300 ${
+                                                activeTab === "analysis"
+                                                    ? "text-white bg-gradient-to-r from-blue-500 to-purple-500 shadow-md transform scale-105"
+                                                    : "text-gray-600 hover:text-gray-800 hover:bg-gray-50"
+                                            }`}
+                                            onClick={() =>
+                                                setActiveTab("analysis")
+                                            }
+                                        >
+                                            📊 분석 결과
+                                        </button>
+                                    )}
+                                    {youtubeUrl && (
+                                        <button
+                                            className={`px-6 py-3 font-semibold rounded-t-lg transition-all duration-300 ${
+                                                activeTab === "transcript"
+                                                    ? "text-white bg-gradient-to-r from-blue-500 to-purple-500 shadow-md transform scale-105"
+                                                    : "text-gray-600 hover:text-gray-800 hover:bg-gray-50"
+                                            }`}
+                                            onClick={() =>
+                                                setActiveTab("transcript")
+                                            }
+                                        >
+                                            📝 자막
+                                        </button>
+                                    )}
+                                    <button
+                                        className={`px-6 py-3 font-semibold rounded-t-lg transition-all duration-300 ${
+                                            activeTab === "questions"
+                                                ? "text-white bg-gradient-to-r from-blue-500 to-purple-500 shadow-md transform scale-105"
+                                                : "text-gray-600 hover:text-gray-800 hover:bg-gray-50"
+                                        }`}
+                                        onClick={() =>
+                                            setActiveTab("questions")
+                                        }
+                                    >
+                                        💬 AI 대화
+                                    </button>
+                                </div>
+
+                                <div className="flex-1 overflow-y-auto p-6 bg-gray-50 rounded-xl">
+                                    {activeTab === "analysis" &&
+                                    geminiAnalysis ? (
+                                        <div className="text-gray-700 space-y-6">
+                                            <div className="bg-white p-6 rounded-lg shadow-sm">
+                                                <h3 className="text-xl font-bold mb-3 flex items-center text-blue-600">
+                                                    <span className="mr-2">
+                                                        📋
+                                                    </span>{" "}
+                                                    영상 요약
+                                                </h3>
+                                                <p className="leading-relaxed">
+                                                    {geminiAnalysis.summary}
+                                                </p>
+                                            </div>
+
+                                            {geminiAnalysis.keywords &&
+                                                geminiAnalysis.keywords.length >
+                                                    0 && (
+                                                    <div className="bg-white p-6 rounded-lg shadow-sm">
+                                                        <h3 className="text-xl font-bold mb-3 flex items-center text-purple-600">
+                                                            <span className="mr-2">
+                                                                🔑
+                                                            </span>{" "}
+                                                            핵심 단어
+                                                        </h3>
+                                                        <div className="flex flex-wrap gap-2">
+                                                            {geminiAnalysis.keywords.map(
+                                                                (
+                                                                    keyword,
+                                                                    index
+                                                                ) => (
+                                                                    <span
+                                                                        key={
+                                                                            index
+                                                                        }
+                                                                        className="bg-gradient-to-r from-blue-100 to-purple-100 text-blue-800 font-medium px-4 py-2 rounded-full transition-all duration-300 hover:shadow-md hover:scale-110"
+                                                                    >
+                                                                        {
+                                                                            keyword
+                                                                        }
+                                                                    </span>
+                                                                )
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                            {geminiAnalysis.slang_expressions &&
+                                                geminiAnalysis.slang_expressions
+                                                    .length > 0 && (
+                                                    <div className="bg-white p-6 rounded-lg shadow-sm">
+                                                        <h3 className="text-xl font-bold mb-3 flex items-center text-green-600">
+                                                            <span className="mr-2">
+                                                                💡
+                                                            </span>{" "}
+                                                            실전 표현
+                                                        </h3>
+                                                        <ul className="space-y-3">
+                                                            {geminiAnalysis.slang_expressions.map(
+                                                                (
+                                                                    slang,
+                                                                    index
+                                                                ) => (
+                                                                    <li
+                                                                        key={
+                                                                            index
+                                                                        }
+                                                                        className="bg-green-50 p-3 rounded-lg transition-all duration-300 hover:bg-green-100"
+                                                                    >
+                                                                        <strong className="text-green-700">
+                                                                            "
+                                                                            {
+                                                                                slang.expression
+                                                                            }
+                                                                            "
+                                                                        </strong>
+                                                                        <span className="text-gray-600 ml-2">
+                                                                            →{" "}
+                                                                            {
+                                                                                slang.meaning
+                                                                            }
+                                                                        </span>
+                                                                    </li>
+                                                                )
+                                                            )}
+                                                        </ul>
+                                                    </div>
+                                                )}
+                                        </div>
+                                    ) : activeTab === "transcript" &&
+                                      parsedTranscript.length > 0 ? (
+                                        <div
+                                            ref={transcriptContainerRef}
+                                            className="text-gray-700 space-y-2"
+                                        >
+                                            {parsedTranscript.map(
+                                                (
+                                                    segment: VideoSegment,
+                                                    index
+                                                ) => {
+                                                    const isCurrent =
+                                                        index ===
+                                                        activeSegmentIndex;
+                                                    return (
+                                                        <p
+                                                            key={index}
+                                                            className={`py-1 px-4  rounded-lg transition-all duration-300 ${
+                                                                isCurrent
+                                                                    ? "bg-gradient-to-r from-blue-100 to-purple-100 shadow-md transform scale-105"
+                                                                    : "bg-white hover:bg-gray-50"
+                                                            }`}
+                                                        >
+                                                            <span
+                                                                className="font-bold text-blue-600 cursor-pointer hover:text-purple-600 transition-colors duration-300"
+                                                                onClick={() =>
+                                                                    handleSeek(
+                                                                        segment.time
+                                                                    )
+                                                                }
+                                                            >
+                                                                [
+                                                                {String(
+                                                                    Math.floor(
+                                                                        segment.time /
+                                                                            60
+                                                                    )
+                                                                ).padStart(
+                                                                    2,
+                                                                    "0"
+                                                                )}
+                                                                :
+                                                                {String(
+                                                                    Math.floor(
+                                                                        segment.time %
+                                                                            60
+                                                                    )
+                                                                ).padStart(
+                                                                    2,
+                                                                    "0"
+                                                                )}
+                                                                ]
+                                                            </span>{" "}
+                                                            <span
+                                                                className={
+                                                                    isCurrent
+                                                                        ? "font-medium"
+                                                                        : ""
+                                                                }
+                                                            >
+                                                                {segment.text}
+                                                            </span>
+                                                        </p>
+                                                    );
+                                                }
+                                            )}
+                                        </div>
+                                    ) : (
+                                        activeTab === "questions" && (
+                                            <div className="text-gray-700">
+                                                <div className="bg-white p-6 rounded-lg shadow-sm">
+                                                    <h3 className="text-xl font-bold mb-4 flex items-center text-purple-600">
+                                                        <span className="mr-2">
+                                                            🤖
+                                                        </span>{" "}
+                                                        AI 영어 선생님과
+                                                        대화하기
+                                                    </h3>
+                                                    {geminiAnalysis?.main_questions &&
+                                                    geminiAnalysis
+                                                        .main_questions.length >
+                                                        0 ? (
+                                                        <div className="space-y-3">
+                                                            <p className="text-gray-600 mb-4">
+                                                                아래 주제로
+                                                                대화를
+                                                                시작해보세요:
+                                                            </p>
+                                                            {geminiAnalysis.main_questions.map(
+                                                                (
+                                                                    question,
+                                                                    index
+                                                                ) => (
+                                                                    <div
+                                                                        key={
+                                                                            index
+                                                                        }
+                                                                        className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-lg flex items-center justify-between transition-all duration-300 hover:shadow-md"
+                                                                    >
+                                                                        <span className="flex-1 font-medium">
+                                                                            {
+                                                                                question
+                                                                            }
+                                                                        </span>
+                                                                        <button
+                                                                            onClick={() =>
+                                                                                handleStartConversation(
+                                                                                    question
+                                                                                )
+                                                                            }
+                                                                            className="ml-4 bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 transform hover:scale-105"
+                                                                            disabled={
+                                                                                isRecording ||
+                                                                                isPlayingAudio
+                                                                            }
+                                                                        >
+                                                                            시작하기
+                                                                        </button>
+                                                                    </div>
+                                                                )
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="text-center py-8">
+                                                            <p className="mb-4 text-gray-600">
+                                                                영상을 분석하면
+                                                                관련 대화 주제가
+                                                                생성됩니다.
+                                                            </p>
+                                                            <button
+                                                                onClick={() =>
+                                                                    handleStartConversation(
+                                                                        "Hello! Let's practice English together."
+                                                                    )
+                                                                }
+                                                                className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105"
+                                                                disabled={
+                                                                    isRecording ||
+                                                                    isPlayingAudio
+                                                                }
+                                                            >
+                                                                자유 대화
+                                                                시작하기 🎤
+                                                            </button>
+                                                        </div>
+                                                    )}
+
+                                                    {isRecording && (
+                                                        <div className="mt-6 text-center">
+                                                            <button
+                                                                className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white px-8 py-4 rounded-lg transition-all duration-300 transform hover:scale-105 animate-pulse"
+                                                                onClick={() =>
+                                                                    handleStopConversation(
+                                                                        "stop_button"
+                                                                    )
+                                                                }
+                                                            >
+                                                                대화 중지 ⏹️
+                                                            </button>
+                                                            <p className="mt-3 text-green-600 font-medium animate-pulse">
+                                                                🎙️ 녹음 중...
+                                                                영어로
+                                                                말해보세요!
+                                                            </p>
+                                                        </div>
+                                                    )}
+                                                    {isPlayingAudio && (
+                                                        <p className="mt-4 text-center text-blue-600 font-medium animate-pulse">
+                                                            🔊 AI 선생님이
+                                                            응답하고 있어요...
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )
+                                    )}
+                                </div>
+                            </>
+                        ) : (
+                            <div className="flex-1 flex justify-center items-center bg-gray-50 rounded-xl">
+                                <p className="text-gray-500 text-center">
+                                    분석 결과가 여기에 표시됩니다 📊
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                </div>
             )}
-          </div>
         </div>
-      </div>
-    </div>
-  );
+    );
 }
