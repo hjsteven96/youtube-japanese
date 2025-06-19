@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect, useMemo } from 'react';
 import ReactPlayer from 'react-player';
+import { GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
+import { auth } from '../lib/firebase';
 
 interface SlangExpression {
   expression: string;
@@ -12,6 +14,7 @@ interface VideoAnalysis {
   summary: string;
   keywords: string[];
   slang_expressions: SlangExpression[];
+  main_questions: string[];
 }
 
 interface GeminiResponseData {
@@ -36,19 +39,30 @@ export default function Home() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [activeTab, setActiveTab] = useState<'analysis' | 'transcript'>('analysis');
+  const [user, setUser] = useState<User | null>(null);
 
   const playerRef = useRef<ReactPlayer>(null);
   const transcriptContainerRef = useRef<HTMLDivElement>(null);
 
-  const parsedTranscript = useMemo(() => {
-    if (!transcript) return [];
+  useEffect(() => {
+    if (auth) {
+      const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+        setUser(currentUser);
+      });
+      return () => unsubscribe();
+    }
+  }, []);
 
-    const lines = transcript.split('\n').filter(line => line.trim() !== '');
+  const parsedTranscript = useMemo(() => {
+    const safeTranscript = String(transcript || '');
+
+    const lines = safeTranscript.split('\n').filter(line => line.trim() !== '');
+
     const parsed: VideoSegment[] = [];
     let currentSegment: VideoSegment | null = null;
 
     lines.forEach((line) => {
-      const match = line.match(/^\\[(\d{2}):(\d{2})\\]\\s*(.*)/);
+      const match = line.match(/^\[(\d{2}):(\d{2})\]\s*(.*)/);
 
       if (match) {
         if (currentSegment) {
@@ -67,13 +81,12 @@ export default function Home() {
       parsed.push(currentSegment as VideoSegment);
     }
 
-    if (parsed.length === 0 && transcript.trim() !== '') {
-      const cleanedText = transcript.trim().replace(/\[(\d{2}):(\d{2})\]/g, '').trim();
+    if (parsed.length === 0 && safeTranscript.trim() !== '') {
+      const cleanedText = safeTranscript.trim().replace(/^\[(\d{2}):(\d{2})\]/g, '').trim();
       if (cleanedText) {
         parsed.push({ time: 0, text: cleanedText });
       }
     }
-
     return parsed;
   }, [transcript]);
 
@@ -107,6 +120,44 @@ export default function Home() {
     }
   };
 
+  const handleGoogleSignIn = async () => {
+    if (!auth) {
+      setError('Firebase Auth not initialized.');
+      return;
+    }
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (err: unknown) {
+      let errorMessage = 'Google Sign-In failed.';
+      if (err instanceof Error) {
+        errorMessage += `: ${err.message}`;
+      }
+      setError(errorMessage);
+    }
+  };
+
+  const handleGoogleSignOut = async () => {
+    if (!auth) {
+      setError('Firebase Auth not initialized.');
+      return;
+    }
+    try {
+      await signOut(auth);
+      setGeminiAnalysis(null);
+      setTranscript('');
+      setYoutubeUrl('');
+      setCurrentTime(0);
+      setActiveTab('analysis');
+    } catch (err: unknown) {
+      let errorMessage = 'Google Sign-Out failed.';
+      if (err instanceof Error) {
+        errorMessage += `: ${err.message}`;
+      }
+      setError(errorMessage);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -132,7 +183,13 @@ export default function Home() {
 
       const data: GeminiResponseData = await response.json();
       setGeminiAnalysis(data.analysis);
-      setTranscript(data.transcript_text);
+      if (typeof data.transcript_text === 'string') {
+        setTranscript(data.transcript_text);
+        console.log("Received transcript_text:", data.transcript_text);
+      } else {
+        setTranscript('');
+        console.log("Received non-string transcript_text:", data.transcript_text);
+      }
     } catch (err: unknown) {
       let errorMessage = 'An unknown error occurred';
       if (err instanceof Error) {
@@ -147,6 +204,31 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center py-10">
       <h1 className="text-4xl font-bold text-gray-800 mb-8">YouTube 영상 분석기</h1>
+      
+      <div className="mb-4 text-center">
+        {user ? (
+          <div className="flex items-center space-x-2">
+            {user.photoURL && (
+              <img src={user.photoURL} alt="User Avatar" className="w-8 h-8 rounded-full" />
+            )}
+            <p className="text-gray-700">환영합니다, {user.displayName || user.email}!</p>
+            <button
+              onClick={handleGoogleSignOut}
+              className="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-3 rounded focus:outline-none focus:shadow-outline"
+            >
+              로그아웃
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={handleGoogleSignIn}
+            className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+          >
+            Google 계정으로 로그인
+          </button>
+        )}
+      </div>
+
       <form onSubmit={handleSubmit} className="bg-white p-8 rounded-lg shadow-md w-full max-w-md mb-8">
         <div className="mb-4">
           <label htmlFor="youtubeUrl" className="block text-gray-700 text-sm font-bold mb-2">
@@ -233,13 +315,24 @@ export default function Home() {
                 )}
 
                 {geminiAnalysis.slang_expressions && geminiAnalysis.slang_expressions.length > 0 && (
-                  <div>
+                  <div className="mb-4">
                     <h3 className="text-xl font-semibold mb-2">구어체 표현:</h3>
                     <ul>
                       {geminiAnalysis.slang_expressions.map((slang, index) => (
                         <li key={index} className="mb-1">
-                          <span className="font-medium">{slang.expression}:</span> {slang.meaning}
+                          <strong>{slang.expression}:</strong> {slang.meaning}
                         </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {geminiAnalysis.main_questions && geminiAnalysis.main_questions.length > 0 && (
+                  <div className="mb-4">
+                    <h3 className="text-xl font-semibold mb-2">주요 질문:</h3>
+                    <ul className="list-disc list-inside pl-4">
+                      {geminiAnalysis.main_questions.map((question, index) => (
+                        <li key={index} className="mb-1">{question}</li>
                       ))}
                     </ul>
                   </div>
