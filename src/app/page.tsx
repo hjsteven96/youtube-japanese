@@ -76,43 +76,37 @@ export default function Home() {
 
     const parsedTranscript = useMemo(() => {
         const safeTranscript = String(transcript || "");
-
-        const lines = safeTranscript
-            .split("\n")
-            .filter((line) => line.trim() !== "");
+        if (!safeTranscript.trim()) {
+            return [];
+        }
 
         const parsed: VideoSegment[] = [];
-        let currentSegment: VideoSegment | null = null;
+        // Regex to find all occurrences of [mm:ss] followed by the text until the next timestamp or end of string.
+        // Capturing groups:
+        // 1. (\d{2}) - minutes
+        // 2. (\d{2}) - seconds
+        // 3. ([^\[]*) - text (any character that is not an opening bracket '[')
+        const regex = /\[(\d{2}):(\d{2})\]([^\[]*)/g;
 
-        lines.forEach((line) => {
-            const match = line.match(/^\[(\d{2}):(\d{2})\]\s*(.*)/);
+        const matches = safeTranscript.matchAll(regex);
 
-            if (match) {
-                if (currentSegment) {
-                    parsed.push(currentSegment as VideoSegment);
-                }
-                const minutes = parseInt(match[1], 10);
-                const seconds = parseInt(match[2], 10);
-                const timeInSeconds = minutes * 60 + seconds;
-                currentSegment = { time: timeInSeconds, text: match[3].trim() };
-            } else if (currentSegment) {
-                (currentSegment as VideoSegment).text += " " + line.trim();
+        for (const match of matches) {
+            const minutes = parseInt(match[1], 10);
+            const seconds = parseInt(match[2], 10);
+            const timeInSeconds = minutes * 60 + seconds;
+            const text = match[3].trim();
+
+            if (text) {
+                // Only add segments that have actual text content
+                parsed.push({ time: timeInSeconds, text });
             }
-        });
-
-        if (currentSegment) {
-            parsed.push(currentSegment as VideoSegment);
         }
 
+        // Fallback for transcripts with no timestamps at all
         if (parsed.length === 0 && safeTranscript.trim() !== "") {
-            const cleanedText = safeTranscript
-                .trim()
-                .replace(/^\[(\d{2}):(\d{2})\]/g, "")
-                .trim();
-            if (cleanedText) {
-                parsed.push({ time: 0, text: cleanedText });
-            }
+            parsed.push({ time: 0, text: safeTranscript.trim() });
         }
+
         return parsed;
     }, [transcript]);
 

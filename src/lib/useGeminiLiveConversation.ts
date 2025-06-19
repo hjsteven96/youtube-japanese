@@ -224,8 +224,8 @@ export const useGeminiLiveConversation = ({
 
             const initialPromptText =
                 transcript && geminiAnalysis
-                    ? `Based on the video transcript, answer: "${question}". Transcript: ${transcript}`
-                    : `Answer the user's question: "${question}"`;
+                    ? `You are an English learning assistant. Your role is to help the user learn English by having a conversation based on the video's transcript. The video content is provided in the transcript. The user will answer a pre-defined question. Video transcript: "${transcript}". The user will now answer this question based on the video: "${question}"`
+                    : `You are an English learning assistant. Your role is to help the user learn English by having a conversation. The user will now answer this question: "${question}"`;
 
             newSession.sendClientContent({
                 turns: [{ role: "user", parts: [{ text: initialPromptText }] }],
