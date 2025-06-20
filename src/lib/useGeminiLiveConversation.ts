@@ -25,6 +25,7 @@ interface UseGeminiLiveConversationProps {
     geminiAnalysis: VideoAnalysis | null;
     setError: (message: string) => void;
     setActiveTab: (tab: "analysis" | "transcript" | "questions") => void;
+    onConversationStart?: () => void; // <--- 이 줄을 추가하세요
 }
 interface UseGeminiLiveConversationResult {
     isRecording: boolean;
@@ -39,6 +40,7 @@ export const useGeminiLiveConversation = ({
     geminiAnalysis,
     setError,
     setActiveTab,
+    onConversationStart, // 2. props에서 콜백 함수를 받도록 추가
 }: UseGeminiLiveConversationProps): UseGeminiLiveConversationResult => {
     const [isRecording, setIsRecording] = useState(false);
     const [isPlayingAudio, setIsPlayingAudio] = useState(false);
@@ -106,6 +108,9 @@ export const useGeminiLiveConversation = ({
         setError("");
 
         try {
+            if (onConversationStart) {
+                onConversationStart();
+            }
             console.log("1. Fetching token...");
             const tokenRes = await fetch("/api/gemini-live-token");
             if (!tokenRes.ok)

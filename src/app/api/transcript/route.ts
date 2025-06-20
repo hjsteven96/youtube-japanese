@@ -23,18 +23,59 @@ export async function POST(req: NextRequest) {
     }
 
     const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
+    const YOUTUBE_DATA_API_KEY = process.env.YOUTUBE_DATA_API_KEY;
 
     if (!GOOGLE_API_KEY) {
+        console.error("환경 변수 GOOGLE_API_KEY가 설정되지 않았습니다.");
         return NextResponse.json(
             { error: "Google API Key not configured" },
             { status: 500 }
         );
+    } else {
+        console.log("GOOGLE_API_KEY가 로드되었습니다.");
+    }
+
+    let youtubeTitle: string | null = null;
+    let youtubeDescription: string | null = null;
+
+    // YouTube Data API를 사용하여 영상 제목과 설명 가져오기
+    const videoIdMatch = youtubeUrl.match(
+        /(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/
+    );
+    if (videoIdMatch && videoIdMatch[1] && YOUTUBE_DATA_API_KEY) {
+        const videoId = videoIdMatch[1];
+        try {
+            const youtubeApiUrl = `https://www.googleapis.com/youtube/v3/videos?id=${videoId}&key=${YOUTUBE_DATA_API_KEY}&part=snippet`;
+            const youtubeApiResponse = await fetch(youtubeApiUrl);
+            const youtubeApiData = await youtubeApiResponse.json();
+
+            if (youtubeApiData.items && youtubeApiData.items.length > 0) {
+                youtubeTitle = youtubeApiData.items[0].snippet.title;
+                youtubeDescription =
+                    youtubeApiData.items[0].snippet.description;
+                console.log(
+                    "YouTube Data API를 통해 영상 제목 가져옴:",
+                    youtubeTitle
+                );
+                console.log(
+                    "YouTube Data API를 통해 영상 설명 가져옴:",
+                    youtubeDescription
+                );
+            } else {
+                console.warn(
+                    "YouTube Data API에서 영상 제목을 찾을 수 없습니다."
+                );
+            }
+        } catch (youtubeApiError: unknown) {
+            console.error("YouTube Data API 오류:", youtubeApiError);
+        }
+    } else {
+        console.warn(
+            "YouTube Data API 키가 없거나 YouTube URL에서 videoId를 추출할 수 없습니다. 영상 제목을 가져오지 않습니다."
+        );
     }
 
     try {
-        const videoInfo = await ytdl.getInfo(youtubeUrl);
-        const youtubeTitle = videoInfo.videoDetails.title;
-
         const geminiRequestBody = JSON.stringify({
             contents: [
                 {
@@ -51,6 +92,10 @@ export async function POST(req: NextRequest) {
                     ],
                 },
             ],
+            responseMimeType: "application/json",
+            generationConfig: {
+                maxOutputTokens: 65536,
+            },
         });
 
         const response = await fetch(
@@ -76,6 +121,7 @@ export async function POST(req: NextRequest) {
         }
 
         const data = await response.json();
+        console.log("Gemini API 원시 응답:", JSON.stringify(data, null, 2)); // 원시 응답 로깅
         let parsedContent;
         try {
             // Gemini API might return text that needs parsing to JSON
@@ -83,6 +129,15 @@ export async function POST(req: NextRequest) {
             if (textContent) {
                 // Remove markdown code block fences using a global replace
                 textContent = textContent.replace(/```json|```/g, "").trim();
+
+                // "summary" 필드 뒤에 콤마가 누락된 경우 수정
+                // 이 수정은 특정 JSON 구조에 의존하며, 다른 오류에는 적용되지 않을 수 있습니다.
+                textContent = textContent.replace(
+                    /("summary":\s*"[^"]*")\s*("keywords":)/,
+                    "$1,$2"
+                );
+                console.log("JSON 콤마 누락 수정 시도됨.");
+
                 parsedContent = JSON.parse(textContent);
 
                 // Ensure transcript_text is a single string, even if it comes as an array
@@ -91,6 +146,7 @@ export async function POST(req: NextRequest) {
                         parsedContent.transcript_text.join("\n");
                 }
                 parsedContent.youtubeTitle = youtubeTitle;
+                parsedContent.youtubeDescription = youtubeDescription;
             } else {
                 parsedContent = {
                     analysis: {
@@ -100,6 +156,7 @@ export async function POST(req: NextRequest) {
                     },
                     transcript_text: "No transcript found.",
                     youtubeTitle: youtubeTitle,
+                    youtubeDescription: youtubeDescription,
                 };
             }
         } catch (_parseError: unknown) {
