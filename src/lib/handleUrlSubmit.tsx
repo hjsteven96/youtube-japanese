@@ -49,7 +49,7 @@ export const handleUrlSubmit = async ({
     setError("");
     setAnalysisData(null);
     setCurrentTime(0);
-    setActiveTab("analysis");
+    setActiveTab("transcript");
 
     if (!user) {
         alert("로그인 후 이용해주세요.");

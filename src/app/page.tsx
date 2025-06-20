@@ -42,7 +42,7 @@ interface GeminiResponseData {
 export default function Home() {
     const [activeTab, setActiveTab] = useState<
         "analysis" | "transcript" | "questions"
-    >("analysis");
+    >("transcript");
     // --- 최상위 상태 관리 ---
     const [user, setUser] = useState<User | null>(null);
     const [youtubeUrl, setYoutubeUrl] = useState("");
