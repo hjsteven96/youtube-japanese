@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import ytdl from "ytdl-core";
 
 export async function POST(req: NextRequest) {
     let requestBody;
@@ -31,6 +32,9 @@ export async function POST(req: NextRequest) {
     }
 
     try {
+        const videoInfo = await ytdl.getInfo(youtubeUrl);
+        const youtubeTitle = videoInfo.videoDetails.title;
+
         const geminiRequestBody = JSON.stringify({
             contents: [
                 {
@@ -86,6 +90,7 @@ export async function POST(req: NextRequest) {
                     parsedContent.transcript_text =
                         parsedContent.transcript_text.join("\n");
                 }
+                parsedContent.youtubeTitle = youtubeTitle;
             } else {
                 parsedContent = {
                     analysis: {
@@ -94,6 +99,7 @@ export async function POST(req: NextRequest) {
                         slang_expressions: [],
                     },
                     transcript_text: "No transcript found.",
+                    youtubeTitle: youtubeTitle,
                 };
             }
         } catch (_parseError: unknown) {
