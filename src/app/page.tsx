@@ -1,184 +1,72 @@
+// src/app/page.tsx
 "use client";
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+// useRouter 대신 Link 컴포넌트나 a 태그를 사용할 것이므로 제거해도 무방
+// import { useRouter } from "next/navigation";
+
 import ReactPlayer from "react-player";
-import {
-    GoogleAuthProvider,
-    signInWithPopup,
-    signOut,
-    onAuthStateChanged,
-    User,
-} from "firebase/auth";
-import { auth, db } from "../lib/firebase";
-import { doc, getDoc, setDoc, collection, updateDoc } from "firebase/firestore";
-import { useGeminiLiveConversation } from "../lib/useGeminiLiveConversation";
-import { handleUrlSubmit as processUrl } from "../lib/handleUrlSubmit"; //
+import Link from "next/link"; // Next.js의 Link 컴포넌트 사용
 
-// --- 분리된 컴포넌트 import ---
-import LoadingAnimation from "./components/LoadingAnimation";
-import ConversationModal from "./components/ConversationModal";
-import UrlInputForm from "./components/UrlInputForm";
-import VideoPlayer from "./components/VideoPlayer";
-import AnalysisTabs from "./components/AnalysisTabs";
-
-// --- 타입 정의 (별도 파일로 분리 추천) ---
-interface SlangExpression {
-    expression: string;
-    meaning: string;
-}
-interface VideoAnalysis {
-    summary: string;
-    keywords: string[];
-    slang_expressions: SlangExpression[];
-    main_questions: string[];
-}
-interface GeminiResponseData {
-    analysis: VideoAnalysis;
-    transcript_text: string;
-    youtubeTitle?: string;
-    youtubeDescription?: string;
+interface VideoInfo {
+    url: string;
+    videoId: string;
+    title: string;
+    duration: number; // 초 단위
 }
 
-// --- 메인 페이지 컴포넌트 ---
 export default function Home() {
-    const [activeTab, setActiveTab] = useState<
-        "analysis" | "transcript" | "questions"
-    >("transcript");
-    // --- 최상위 상태 관리 ---
-    const [user, setUser] = useState<User | null>(null);
-    const [youtubeUrl, setYoutubeUrl] = useState("");
-    const [analysisData, setAnalysisData] = useState<GeminiResponseData | null>(
-        null
-    );
-    const [loading, setLoading] = useState(false);
+    const [urlInput, setUrlInput] = useState("");
+    const [videoInfo, setVideoInfo] = useState<VideoInfo | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
 
-    // 비디오 플레이어 관련 상태
-    const [isPlaying, setIsPlaying] = useState(false);
-    const [currentTime, setCurrentTime] = useState(0);
-    const playerRef = useRef<ReactPlayer>(null);
+    const extractVideoId = (url: string): string | null => {
+        const youtubeRegex = /(?:v=|\/|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+        const match = url.match(youtubeRegex);
+        return match ? match[1] : null;
+    };
 
-    // AI 대화 관련 상태
-    const [isConversationModeActive, setIsConversationModeActive] =
-        useState(false);
-
-    // --- 커스텀 훅 및 로직 ---
-    const {
-        isRecording,
-        isPlayingAudio,
-        selectedQuestion,
-        handleStartConversation,
-        handleStopConversation,
-    } = useGeminiLiveConversation({
-        transcript: analysisData?.transcript_text || "",
-        geminiAnalysis: analysisData?.analysis ?? null,
-        setError,
-        onConversationStart: () => setIsConversationModeActive(true),
-        setActiveTab: setActiveTab,
-    });
-
-    // --- useEffect 훅 ---
-    // Firebase 인증 상태 감시
     useEffect(() => {
-        if (auth) {
-            const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-                setUser(currentUser);
-            });
-            return () => unsubscribe();
-        }
-    }, []);
-
-    // 사용자별 영상 학습 진행 상황 저장 (디바운스)
-    useEffect(() => {
-        if (!user || !youtubeUrl || !analysisData?.youtubeTitle) return;
-
-        const videoId = youtubeUrl.match(
-            /(?:v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/
-        )?.[1];
-        if (!videoId) return;
-
-        const handler = setTimeout(async () => {
-            try {
-                const historyDocRef = doc(
-                    db,
-                    "users",
-                    user.uid,
-                    "learningHistory",
-                    videoId
-                );
-                await setDoc(
-                    historyDocRef,
-                    {
-                        youtubeUrl: youtubeUrl,
-                        lastPlayedTime: currentTime,
-                        timestamp: new Date().toISOString(),
-                        youtubeTitle: analysisData.youtubeTitle,
-                        youtubeDescription: analysisData.youtubeDescription,
-                    },
-                    { merge: true }
-                );
-            } catch (error) {
-                console.error("Error saving playback progress:", error);
+        const handler = setTimeout(() => {
+            const videoId = extractVideoId(urlInput);
+            if (videoId) {
+                if (videoInfo?.videoId !== videoId) {
+                    setVideoInfo(null);
+                    setIsLoading(true);
+                    setError("");
+                }
+            } else {
+                setVideoInfo(null);
+                setError("");
             }
-        }, 3000);
-
+        }, 500);
         return () => clearTimeout(handler);
-    }, [
-        currentTime,
-        youtubeUrl,
-        user,
-        analysisData?.youtubeTitle,
-        analysisData?.youtubeDescription,
-    ]);
+    }, [urlInput, videoInfo?.videoId]);
 
-    // --- 이벤트 핸들러 ---
-    const handleGoogleSignIn = async () => {
-        if (!auth) return;
-        try {
-            await signInWithPopup(auth, new GoogleAuthProvider());
-        } catch (err) {
-            setError("Google Sign-In failed.");
-        }
-    };
+    const handlePlayerReady = useCallback(
+        (player: any) => {
+            const videoId = extractVideoId(urlInput);
+            if (player && videoId) {
+                const duration = player.getDuration();
+                const internalPlayer = player.getInternalPlayer();
+                const title =
+                    internalPlayer?.videoTitle || "제목을 불러올 수 없습니다.";
+                setVideoInfo({
+                    url: urlInput,
+                    videoId: videoId,
+                    title: title,
+                    duration: duration,
+                });
+                setIsLoading(false);
+            }
+        },
+        [urlInput]
+    );
 
-    const handleGoogleSignOut = async () => {
-        if (!auth) return;
-        await signOut(auth);
-        setYoutubeUrl("");
-        setAnalysisData(null);
-        setError("");
-    };
-
-    const onUrlSubmit = (submittedUrl: string) => {
-        processUrl({
-            submittedUrl,
-            user,
-            setYoutubeUrl,
-            setLoading,
-            setError,
-            setAnalysisData,
-            setCurrentTime,
-            setActiveTab,
-        });
-    };
-
-    const handleUrlChange = () => {
-        setError("");
-        setAnalysisData(null);
-        setYoutubeUrl("");
-    };
-
-    const handleSeek = (seconds: number) => {
-        playerRef.current?.seekTo(seconds, "seconds");
-        setIsPlaying(true);
-    };
-
-    const startConversation = (question: string) => {
-        // useGeminiLiveConversation 훅을 직접 호출
-        handleStartConversation(question);
-    };
+    const isTooLong = videoInfo ? videoInfo.duration > 600 : false;
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex flex-col items-center py-10 px-4">
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex flex-col items-center justify-center py-10 px-4">
             <header className="text-center mb-8">
                 <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">
                     YouTube로 배우는 영어
@@ -187,92 +75,87 @@ export default function Home() {
                     AI와 함께 영상을 분석하고 실전 영어를 학습해보세요 🎓
                 </p>
             </header>
+            <div className="mb-6">{/* User-info or sign-in button */}</div>
 
-            <div className="mb-6">
-                {user ? (
-                    <div className="flex items-center space-x-3 bg-white rounded-full px-5 py-2 shadow-md">
-                        {user.photoURL && (
-                            <img
-                                src={user.photoURL}
-                                alt="User Avatar"
-                                className="w-10 h-10 rounded-full border-2 border-purple-400"
-                            />
-                        )}
-                        <p className="text-gray-700 font-medium">
-                            안녕하세요, {user.displayName || user.email}님! 👋
-                        </p>
-                        <button
-                            onClick={handleGoogleSignOut}
-                            className="bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-semibold py-2 px-4 rounded-full transition-transform transform hover:scale-105"
-                        >
-                            로그아웃
-                        </button>
-                    </div>
-                ) : (
-                    <button
-                        onClick={handleGoogleSignIn}
-                        className="bg-white hover:bg-gray-50 text-gray-700 font-semibold py-3 px-6 rounded-full shadow-lg flex items-center space-x-3 transition-transform transform hover:scale-105"
+            <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-2xl transition-all duration-300">
+                <div className="mb-6">
+                    <label
+                        htmlFor="youtubeUrl"
+                        className="block text-gray-700 text-sm font-semibold mb-3 flex items-center"
                     >
-                        {/* Google Icon SVG */}
-                        <span>Google로 시작하기</span>
-                    </button>
-                )}
-            </div>
-
-            <UrlInputForm
-                onSubmit={onUrlSubmit}
-                loading={loading}
-                onUrlChange={handleUrlChange}
-            />
-
-            {error && (
-                <p className="text-red-500 text-sm mt-4 text-center">
-                    ⚠️ {error}
-                </p>
-            )}
-
-            {loading && !analysisData && <LoadingAnimation />}
-
-            {analysisData && youtubeUrl && (
-                <div className="w-full max-w-6xl bg-white p-4 md:p-8 rounded-2xl shadow-xl flex flex-col lg:flex-row lg:space-x-8 mt-4">
-                    <VideoPlayer
-                        url={youtubeUrl}
-                        title={analysisData.youtubeTitle || null}
-                        summary={analysisData.analysis.summary}
-                        playerRef={playerRef}
-                        isPlaying={isPlaying}
-                        onPlay={() => setIsPlaying(true)}
-                        onPause={() => setIsPlaying(false)}
-                        onEnded={() => setIsPlaying(false)}
-                        onProgress={({ playedSeconds }) =>
-                            setCurrentTime(playedSeconds)
-                        }
-                    />
-                    <AnalysisTabs
-                        analysis={analysisData.analysis}
-                        transcript={analysisData.transcript_text}
-                        currentTime={currentTime}
-                        onSeek={handleSeek}
-                        onStartConversation={startConversation}
-                        isConversationPending={isRecording || isPlayingAudio}
-                        user={user}
-                        youtubeUrl={youtubeUrl}
-                        activeTab={activeTab} // <-- prop 추가
-                        setActiveTab={setActiveTab} // <-- prop 추가
+                        <span className="mr-2">🎬</span> YouTube URL 입력
+                    </label>
+                    <input
+                        type="url"
+                        id="youtubeUrl"
+                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none transition-all duration-300 text-gray-700"
+                        placeholder="https://www.youtube.com/watch?v=..."
+                        value={urlInput}
+                        onChange={(e) => setUrlInput(e.target.value)}
                     />
                 </div>
-            )}
 
-            <ConversationModal
-                isOpen={isConversationModeActive}
-                onClose={() => {
-                    setIsConversationModeActive(false);
-                    handleStopConversation("modal_close");
-                }}
-                isRecording={isRecording}
-                isPlayingAudio={isPlayingAudio}
-                selectedQuestion={selectedQuestion}
-            />
+                <div style={{ display: "none" }}>
+                    {extractVideoId(urlInput) && (
+                        <ReactPlayer
+                            url={urlInput}
+                            onReady={handlePlayerReady}
+                        />
+                    )}
+                </div>
+
+                {isLoading && (
+                    <div className="text-center py-4">
+                        <p className="text-gray-500">
+                            영상 정보를 불러오는 중...
+                        </p>
+                    </div>
+                )}
+
+                {error && (
+                    <p className="text-red-500 text-sm mt-4 text-center">
+                        ⚠️ {error}
+                    </p>
+                )}
+
+                {videoInfo && (
+                    <div className="mt-8 animate-slide-up">
+                        <div className="relative w-full pt-[56.25%] rounded-xl overflow-hidden shadow-lg mb-4">
+                            <ReactPlayer
+                                url={videoInfo.url}
+                                controls={true}
+                                width="100%"
+                                height="100%"
+                                className="absolute inset-0"
+                            />
+                        </div>
+                        <h2 className="text-xl font-bold text-gray-800 mb-2">
+                            {videoInfo.title}
+                        </h2>
+                        <p className="text-gray-600 mb-4">
+                            영상 길이: {Math.floor(videoInfo.duration / 60)}분{" "}
+                            {Math.floor(videoInfo.duration % 60)}초
+                        </p>
+
+                        {/* ★★★ 핵심 변경: 버튼을 Link 컴포넌트로 변경 ★★★ */}
+                        <Link
+                            href={`/analysis/${videoInfo.videoId}`}
+                            passHref
+                            // isTooLong일 경우 클릭 이벤트를 막기 위해 pointer-events-none 사용
+                            className={`block text-center w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 ${
+                                isTooLong
+                                    ? "opacity-50 cursor-not-allowed pointer-events-none"
+                                    : ""
+                            }`}
+                            aria-disabled={isTooLong}
+                        >
+                            {isTooLong
+                                ? "10분 이하의 영상만 분석 가능합니다"
+                                : "AI로 영상 분석하기 ✨"}
+                        </Link>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
