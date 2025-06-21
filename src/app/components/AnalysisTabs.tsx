@@ -57,6 +57,7 @@ const AnalysisTabs = ({
             const seconds = parseInt(match[2], 10);
             const timeInSeconds = minutes * 60 + seconds;
             const text = match[3].trim();
+
             if (text) parsed.push({ time: timeInSeconds, text });
         }
         if (parsed.length === 0 && safeTranscript.trim()) {

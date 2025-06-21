@@ -56,7 +56,7 @@ const TranscriptViewer = ({
         }
     }, [activeSegmentIndex]);
 
-    // 툴팁 외부 클릭 시 숨기기
+    // 툴크 외부 클릭 시 숨기기
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (
@@ -199,7 +199,11 @@ const TranscriptViewer = ({
                             )}
                             ]
                         </span>{" "}
-                        <span className={isCurrent ? "font-medium" : ""}>
+                        <span
+                            className={`${
+                                isCurrent ? "font-medium" : ""
+                            } whitespace-pre-wrap`}
+                        >
                             {segment.text}
                         </span>
                     </p>
