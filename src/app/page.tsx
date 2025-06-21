@@ -11,6 +11,7 @@ import { db, auth } from "@/lib/firebase"; // Firebase 임포트
 import { doc, setDoc, collection, addDoc } from "firebase/firestore"; // collection과 addDoc 임포트
 import TrendingVideos from "./components/TrendingVideos";
 import { onAuthStateChanged } from "firebase/auth"; // onAuthStateChanged 임포트
+import Alert from "./components/Alert"; // Alert 컴포넌트 임포트
 
 interface VideoInfo {
     url: string;
@@ -25,6 +26,7 @@ export default function Home() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
     const [user, setUser] = useState<any>(null); // 사용자 상태 추가
+    const [showLoginAlert, setShowLoginAlert] = useState(false); // 로그인 얼럿 상태 추가
 
     // Firebase Auth 상태 변경 리스너
     useEffect(() => {
@@ -131,7 +133,7 @@ export default function Home() {
                             htmlFor="youtubeUrl"
                             className="block text-gray-700 text-sm font-semibold mb-3 flex items-center"
                         >
-                            <span className="mr-2">🎬</span> YouTube URL 입력
+                            <span className="mr-2">🎬</span> YouTube 링크 입력
                         </label>
                         <input
                             type="url"
@@ -193,7 +195,7 @@ export default function Home() {
                             onClick={(e) => {
                                 if (!user) {
                                     e.preventDefault(); // 링크 이동 방지
-                                    alert("로그인 후 이용할 수 있습니다");
+                                    setShowLoginAlert(true); // Alert 컴포넌트 표시
                                 }
                             }}
                             // isTooLong일 경우 클릭 이벤트를 막기 위해 pointer-events-none 사용
@@ -212,9 +214,30 @@ export default function Home() {
                 )}
             </div>
             <div className="w-full max-w-3xl mt-8 px-4 space-y-8">
-                <TrendingVideos />
                 <RecentVideos />
+                <TrendingVideos />
             </div>
+
+            {/* 로그인 필요 Alert 컴포넌트 */}
+            {showLoginAlert && (
+                <Alert
+                    title="로그인 필요"
+                    subtitle="이 기능을 사용하려면 로그인이 필요합니다."
+                    buttons={[
+                        {
+                            text: "확인",
+                            onClick: () => setShowLoginAlert(false),
+                            isPrimary: true,
+                        },
+                        {
+                            text: "닫기",
+                            onClick: () => setShowLoginAlert(false),
+                            isPrimary: false,
+                        },
+                    ]}
+                    onClose={() => setShowLoginAlert(false)} // 배경 클릭 시 닫기
+                />
+            )}
         </div>
     );
 }

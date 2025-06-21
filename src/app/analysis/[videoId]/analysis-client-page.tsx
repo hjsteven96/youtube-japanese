@@ -23,6 +23,8 @@ interface GeminiResponseData {
     transcript_text: string;
     youtubeTitle?: string | null;
     youtubeDescription?: string | null;
+    thumbnailUrl?: string | null;
+    duration?: number | null;
 }
 
 const processTranscript = (data: GeminiResponseData): GeminiResponseData => {
@@ -95,7 +97,7 @@ function AnalysisPageComponent() {
 
             try {
                 // 1. Firestore 캐시 확인 (로그인 여부와 관계없이 먼저 확인)
-                const docId = `yt_${videoId}`;
+                const docId = `${videoId}`;
                 const docRef = doc(db, "videoAnalyses", docId);
                 const docSnap = await getDoc(docRef);
 
@@ -104,8 +106,6 @@ function AnalysisPageComponent() {
                         docSnap.data() as GeminiResponseData
                     );
 
-                    // ★★★ 버그 수정 완료 ★★★
-                    // 처리된 데이터인 `cachedData`를 상태로 설정합니다.
                     if (isMounted) setAnalysisData(cachedData);
 
                     setLoading(false);
@@ -172,6 +172,8 @@ function AnalysisPageComponent() {
                 const finalData = processTranscript({
                     ...newAnalysisData,
                     youtubeTitle: metaData.youtubeTitle,
+                    thumbnailUrl: metaData.thumbnailUrl,
+                    duration: metaData.duration,
                 });
 
                 if (isMounted) setAnalysisData(finalData);

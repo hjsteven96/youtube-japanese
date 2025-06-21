@@ -48,6 +48,7 @@ export async function getYoutubeVideoDetails(videoId: string) {
                 youtubeTitle: snippet.title,
                 youtubeDescription: snippet.description,
                 duration: durationInSeconds,
+                thumbnailUrl: snippet.thumbnails?.high?.url || null,
             };
         } else {
             return null; // 비디오 없음
