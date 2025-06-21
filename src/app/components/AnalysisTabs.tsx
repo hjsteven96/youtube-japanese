@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useMemo } from "react";
 import TranscriptViewer from "./TranscriptViewer";
 import { User } from "firebase/auth";
+import SavedExpressions, { SavedExpression } from "./SavedExpressions";
 
-// page.tsx에 있던 인터페이스들을 가져옵니다.
-// 나중에는 types/index.ts 같은 파일로 분리하는 것이 좋습니다.
+// --- 타입 정의 ---
 interface SlangExpression {
     expression: string;
     meaning: string;
@@ -30,8 +30,11 @@ interface AnalysisTabsProps {
     isConversationPending: boolean;
     user: User | null;
     youtubeUrl: string;
-    activeTab: "analysis" | "transcript" | "questions"; // 1. prop 타입 추가
-    setActiveTab: (tab: "analysis" | "transcript" | "questions") => void; // 2. prop 타입 추가
+    activeTab: "analysis" | "transcript" | "questions";
+    setActiveTab: (tab: "analysis" | "transcript" | "questions") => void;
+    savedExpressions: SavedExpression[];
+    onDeleteExpression: (id: string) => void;
+    onAddExpression: (expression: Omit<SavedExpression, "id">) => Promise<void>;
 }
 
 const AnalysisTabs = ({
@@ -43,8 +46,11 @@ const AnalysisTabs = ({
     isConversationPending,
     user,
     youtubeUrl,
-    activeTab, // 3. props로 받기
-    setActiveTab, // 4. props로 받기
+    activeTab,
+    setActiveTab,
+    savedExpressions,
+    onDeleteExpression,
+    onAddExpression,
 }: AnalysisTabsProps) => {
     const parsedTranscript = useMemo((): VideoSegment[] => {
         const safeTranscript = String(transcript || "");
@@ -100,12 +106,24 @@ const AnalysisTabs = ({
             <div className="flex space-x-2 mb-4 border-b-2 border-gray-100">
                 <TabButton tabName="transcript" label="📝 자막" />
                 <TabButton tabName="analysis" label="📊 주요 표현" />
-                <TabButton tabName="questions" label="💬 AI 대화" />
+                {/* <TabButton tabName="questions" label="💬 AI 대화" /> */}
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 bg-gray-50 rounded-xl">
                 {activeTab === "analysis" && (
                     <div className="text-gray-700 space-y-6">
+                        {user && savedExpressions.length > 0 && (
+                            <div className="bg-white p-6 rounded-lg shadow-sm">
+                                <h3 className="text-xl font-bold mb-3 flex items-center text-green-600">
+                                    📌 내가 저장한 표현
+                                </h3>
+                                <SavedExpressions
+                                    expressions={savedExpressions}
+                                    onDelete={onDeleteExpression}
+                                />
+                            </div>
+                        )}
+
                         {analysis.keywords?.length > 0 && (
                             <div className="bg-white p-6 rounded-lg shadow-sm">
                                 <h3 className="text-xl font-bold mb-3 flex items-center text-purple-600">
@@ -158,6 +176,7 @@ const AnalysisTabs = ({
                         videoSummary={analysis.summary}
                         user={user}
                         youtubeUrl={youtubeUrl}
+                        onSave={onAddExpression}
                     />
                 )}
 

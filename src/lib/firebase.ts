@@ -27,7 +27,7 @@ let db: Firestore;
 if (typeof window !== "undefined") {
     auth = getAuth(app);
     analytics = getAnalytics(app);
-    db = getFirestore(app);
+    db = getFirestore(app, "youtube-english");
 }
 
 export { app, auth, analytics, db };

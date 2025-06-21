@@ -1,4 +1,5 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+
 import { Inter, Noto_Sans_KR } from "next/font/google";
 import "./globals.css";
 import AuthHeader from "./components/AuthHeader"; // ★ 추가: AuthHeader 임포트
@@ -17,7 +18,14 @@ const notoSansKR = Noto_Sans_KR({
     display: "swap",
 });
 
+// 1. Metadata 객체
 export const metadata: Metadata = {
+    // ★ metadataBase 추가: 환경 변수에 따라 동적으로 설정
+    metadataBase: new URL(
+        process.env.NEXT_PUBLIC_APP_URL ||
+            `https://${process.env.VERCEL_URL}` ||
+            "http://localhost:3000"
+    ),
     title: "Lincue - 링크만 넣으면 영어로 큐! YouTube로 배우는 영어",
     description:
         "YouTube 영상을 AI로 분석하여 실전 영어를 학습하세요. 자막, 핵심 표현, AI 대화 연습까지!",
@@ -29,6 +37,8 @@ export const metadata: Metadata = {
         "영상학습",
     ],
     authors: [{ name: "Your Company Name" }],
+    // PWA를 위한 manifest 경로
+    manifest: "/manifest.json",
     openGraph: {
         title: "YouTube로 배우는 영어 - AI 영어학습 플랫폼",
         description:
@@ -39,7 +49,7 @@ export const metadata: Metadata = {
         siteName: "YouTube English Learning",
         images: [
             {
-                url: "/og-image.png", // 나중에 실제 이미지로 교체
+                url: "/og-image.png", // metadataBase를 기준으로 절대 경로가 됨
                 width: 1200,
                 height: 630,
                 alt: "YouTube로 배우는 영어",
@@ -50,15 +60,8 @@ export const metadata: Metadata = {
         card: "summary_large_image",
         title: "YouTube로 배우는 영어 | AI 영어학습",
         description: "YouTube 영상을 AI로 분석하여 실전 영어를 학습하세요",
-        images: ["/twitter-image.png"], // 나중에 실제 이미지로 교체
+        images: ["/twitter-image.png"], // metadataBase를 기준으로 절대 경로가 됨
     },
-    viewport: {
-        width: "device-width",
-        initialScale: 1,
-        maximumScale: 1,
-    },
-    themeColor: "#4F46E5", // 보라색 테마
-    manifest: "/manifest.json", // PWA를 위한 manifest
     icons: {
         icon: [
             { url: "/favicon.ico" },
@@ -67,6 +70,15 @@ export const metadata: Metadata = {
         ],
         apple: [{ url: "/apple-touch-icon.png" }],
     },
+    // ★ viewport, themeColor는 여기서 제거
+};
+
+// 2. Viewport 객체 별도 export
+export const viewport: Viewport = {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    themeColor: "#4F46E5", // 보라색 테마
 };
 
 export default function RootLayout({

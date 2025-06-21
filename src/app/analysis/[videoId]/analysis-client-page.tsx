@@ -4,13 +4,25 @@ import { useParams, useRouter } from "next/navigation";
 import ReactPlayer from "react-player";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth, db } from "../../../lib/firebase";
-import { doc, getDoc, setDoc, collection, addDoc } from "firebase/firestore";
+import {
+    doc,
+    getDoc,
+    setDoc,
+    collection,
+    addDoc,
+    query,
+    where,
+    getDocs,
+    deleteDoc,
+    orderBy,
+} from "firebase/firestore";
 
 import LoadingAnimation from "../../components/LoadingAnimation";
 import ConversationModal from "../../components/ConversationModal";
 import VideoPlayer from "../../components/VideoPlayer";
 import AnalysisTabs from "../../components/AnalysisTabs";
 import { useGeminiLiveConversation } from "../../../lib/useGeminiLiveConversation";
+import { SavedExpression } from "../../components/SavedExpressions";
 
 // --- 타입 정의 ---
 interface GeminiResponseData {
@@ -57,6 +69,9 @@ function AnalysisPageComponent() {
     const [activeTab, setActiveTab] = useState<
         "analysis" | "transcript" | "questions"
     >("transcript");
+    const [savedExpressions, setSavedExpressions] = useState<SavedExpression[]>(
+        []
+    );
 
     const {
         isRecording,
@@ -82,6 +97,41 @@ function AnalysisPageComponent() {
         return () => unsubscribe();
     }, []);
 
+    const handleAddExpression = async (
+        newExpressionData: Omit<SavedExpression, "id">
+    ) => {
+        console.log("handleAddExpression called with:", newExpressionData);
+        console.log("Current user object:", user);
+
+        if (!user) {
+            alert("표현을 저장하려면 로그인이 필요합니다.");
+            return;
+        }
+
+        try {
+            // Firestore에 데이터를 추가하고, 자동으로 생성된 ID를 가진 문서 참조를 받습니다.
+            const docRef = await addDoc(
+                collection(db, `users/${user.uid}/savedInterpretations`),
+                newExpressionData
+            );
+
+            // 저장이 성공하면, 반환된 ID를 포함하여 화면에 표시할 객체를 만듭니다.
+            const newSavedExpression: SavedExpression = {
+                id: docRef.id,
+                ...newExpressionData,
+            };
+
+            // 화면 상태(State)를 업데이트하여 저장된 표현을 즉시 목록 맨 위에 보여줍니다.
+            setSavedExpressions((prev) => [newSavedExpression, ...prev]);
+        } catch (error) {
+            console.error("표현 저장 중 오류:", error);
+            // 사용자에게 더 구체적인 에러 메시지를 보여줍니다.
+            alert(
+                "표현 저장에 실패했습니다. Firestore 보안 규칙이나 설정을 확인해주세요."
+            );
+        }
+    };
+
     useEffect(() => {
         if (!videoId || !authInitialized) {
             if (videoId) setLoading(true);
@@ -89,14 +139,12 @@ function AnalysisPageComponent() {
         }
 
         let isMounted = true;
-
-        const loadData = async () => {
+        const loadAnalysisData = async () => {
             setLoading(true);
             setError("");
-            setIsRedirecting(false);
+            setAnalysisData(null);
 
             try {
-                // 1. Firestore 캐시 확인 (로그인 여부와 관계없이 먼저 확인)
                 const docId = `${videoId}`;
                 const docRef = doc(db, "videoAnalyses", docId);
                 const docSnap = await getDoc(docRef);
@@ -105,25 +153,17 @@ function AnalysisPageComponent() {
                     const cachedData = processTranscript(
                         docSnap.data() as GeminiResponseData
                     );
-
                     if (isMounted) setAnalysisData(cachedData);
-
-                    setLoading(false);
-                    return; // 캐시 데이터가 있으면 여기서 종료
+                    return;
                 }
 
-                // 2. 캐시된 데이터가 없는 경우, 로그인 여부 확인
                 if (!user) {
-                    console.log(
-                        "로그인되지 않았으며, 캐시된 데이터가 없어 메인 페이지로 리다이렉트합니다."
-                    );
                     setIsRedirecting(true);
                     alert("이 영상은 로그인 후 분석할 수 있습니다.");
                     router.push("/");
-                    return; // 로그인 필요 시 여기서 종료
+                    return;
                 }
 
-                // 3. 로그인되었고 캐시된 데이터도 없는 경우, 메타데이터 가져오기 및 길이 제한 확인
                 const metaRes = await fetch(
                     `/api/youtube-data?videoId=${videoId}`
                 );
@@ -137,20 +177,13 @@ function AnalysisPageComponent() {
 
                 const metaData = await metaRes.json();
                 if (!isMounted) return;
-
                 setVideoTitle(metaData.youtubeTitle);
 
-                // 영상 길이 10분 초과 시 처리 (로그인 후 길이 체크)
                 if (metaData.duration > 600) {
                     setError("10분 이하의 영상만 분석할 수 있습니다.");
-                    setLoading(false);
                     return;
                 }
 
-                // 4. 모든 조건 통과 후, 신규 분석 요청 (Gemini 호출)
-                console.log(
-                    "캐시된 데이터가 없어 Gemini API로 분석을 요청합니다."
-                );
                 const transcriptRes = await fetch("/api/transcript", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -167,8 +200,6 @@ function AnalysisPageComponent() {
                 }
 
                 const newAnalysisData = await transcriptRes.json();
-
-                // 새로 분석된 데이터도 동일하게 처리
                 const finalData = processTranscript({
                     ...newAnalysisData,
                     youtubeTitle: metaData.youtubeTitle,
@@ -178,15 +209,12 @@ function AnalysisPageComponent() {
 
                 if (isMounted) setAnalysisData(finalData);
 
-                // 처리된 데이터를 Firestore에 저장하여 다음에는 이 데이터가 사용되도록 함
                 await setDoc(docRef, {
                     ...finalData,
                     timestamp: new Date().toISOString(),
                 });
 
-                // Add activity log for ANALYSIS
                 if (user) {
-                    // Only log if user is logged in
                     await addDoc(collection(db, "videoActivityLogs"), {
                         videoId: videoId,
                         activityType: "ANALYSIS",
@@ -196,23 +224,78 @@ function AnalysisPageComponent() {
                         duration: metaData.duration,
                     });
                 }
-
-                setLoading(false);
             } catch (err: any) {
                 if (isMounted) {
-                    console.error("데이터 로딩 중 에러 발생:", err);
                     setError(err.message || "알 수 없는 오류가 발생했습니다.");
-                    setLoading(false);
                 }
+            } finally {
+                if (isMounted) setLoading(false);
             }
         };
 
-        loadData();
+        loadAnalysisData();
 
         return () => {
             isMounted = false;
         };
     }, [videoId, user, authInitialized, router]);
+
+    useEffect(() => {
+        if (!user || !videoId || !analysisData) {
+            setSavedExpressions([]);
+            return;
+        }
+
+        const fetchSavedExpressions = async () => {
+            try {
+                const expressionsCollectionRef = collection(
+                    db,
+                    `users/${user.uid}/savedInterpretations`
+                );
+                const q = query(
+                    expressionsCollectionRef,
+                    where("videoId", "==", videoId),
+                    orderBy("timestamp", "desc")
+                );
+
+                const querySnapshot = await getDocs(q);
+                const expressions = querySnapshot.docs.map((doc) => ({
+                    id: doc.id,
+                    ...doc.data(),
+                })) as SavedExpression[];
+
+                setSavedExpressions(expressions);
+            } catch (error) {
+                console.warn(
+                    "저장된 표현을 불러오는 중 오류 발생 (인덱스 필요할 수 있음):",
+                    error
+                );
+            }
+        };
+
+        fetchSavedExpressions();
+    }, [user, videoId, analysisData]);
+
+    const handleDeleteExpression = async (expressionId: string) => {
+        if (!user) return;
+
+        if (confirm("이 표현을 삭제하시겠습니까?")) {
+            try {
+                const docRef = doc(
+                    db,
+                    `users/${user.uid}/savedInterpretations`,
+                    expressionId
+                );
+                await deleteDoc(docRef);
+                setSavedExpressions((prev) =>
+                    prev.filter((exp) => exp.id !== expressionId)
+                );
+            } catch (error) {
+                console.error("표현 삭제 중 오류:", error);
+                alert("삭제에 실패했습니다.");
+            }
+        }
+    };
 
     const handleSeek = (seconds: number) => {
         if (playerRef.current) {
@@ -241,7 +324,7 @@ function AnalysisPageComponent() {
                 ← 다른 영상 분석하기
             </button>
 
-            {(loading || !authInitialized) && <LoadingAnimation />}
+            {loading && <LoadingAnimation />}
 
             {error && !loading && authInitialized && !analysisData && (
                 <p className="text-red-500 text-lg mt-4 text-center p-4 bg-red-100 rounded-lg">
@@ -272,9 +355,12 @@ function AnalysisPageComponent() {
                         onStartConversation={handleStartConversation}
                         isConversationPending={isRecording || isPlayingAudio}
                         user={user}
-                        youtubeUrl={`https://www.youtube.com/watch/v=${videoId}`}
+                        youtubeUrl={`https://www.youtube.com/watch?v=${videoId}`}
                         activeTab={activeTab}
                         setActiveTab={setActiveTab}
+                        savedExpressions={savedExpressions}
+                        onDeleteExpression={handleDeleteExpression}
+                        onAddExpression={handleAddExpression}
                     />
                 </div>
             )}

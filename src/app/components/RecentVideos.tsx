@@ -39,7 +39,7 @@ export default function RecentVideos() {
                             videos.push({
                                 url: data.youtubeUrl,
                                 videoId: doc.id, // 문서 ID를 videoId로 사용
-                                title: data.youtubeTitle || "제목 없음", // Firestore에 title 필드 추가 필요
+                                title: data.title || "제목 없음", // Firestore에 title 필드 추가 필요
                                 duration: data.duration || 0, // Firestore에 duration 필드 추가 필요
                             });
                         });

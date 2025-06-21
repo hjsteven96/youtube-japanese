@@ -4,12 +4,11 @@ import { Metadata } from "next";
 import { Suspense } from "react";
 import AnalysisClientPage from "./analysis-client-page";
 import LoadingAnimation from "../../components/LoadingAnimation";
-
-// ★ 1. 직접 호출할 함수를 lib 폴더에서 임포트합니다.
-// (이 파일을 먼저 생성해야 합니다. 이전 답변 내용을 참고하세요.)
 import { getYoutubeVideoDetails } from "@/lib/youtube";
 
-// generateMetadata 함수의 타입을 직접 명시합니다.
+// ★★★ CORE CHANGE ★★★
+// We are reverting to the original inline type definition for the props.
+// This is a last-ditch effort to change how the Next.js analyzer "sees" this function.
 export async function generateMetadata({
     params,
 }: {
@@ -20,7 +19,6 @@ export async function generateMetadata({
     let youtubeDescription: string | null = null;
 
     try {
-        // ★ 2. fetch 대신, 분리된 함수를 직접 호출합니다.
         const videoDetails = await getYoutubeVideoDetails(videoId);
         if (videoDetails) {
             youtubeTitle = videoDetails.youtubeTitle;
@@ -31,10 +29,9 @@ export async function generateMetadata({
             `Error in generateMetadata for videoId ${videoId}:`,
             error
         );
-        // 에러가 발생해도 기본적인 메타데이터를 제공할 수 있도록 null 값을 유지합니다.
+        // Continue with default metadata on error
     }
 
-    // ★ 3. 가져온 youtubeTitle과 youtubeDescription을 사용하여 메타데이터를 동적으로 생성합니다.
     const defaultTitle = "YouTube 영상으로 영어 공부 | lincue";
     const defaultDescription =
         "YouTube 영상을 AI로 분석하여 실전 영어를 학습하세요. 자막, 핵심 표현, AI 대화 연습까지!";
@@ -87,12 +84,8 @@ export async function generateMetadata({
     };
 }
 
-// 페이지 컴포넌트의 타입도 직접 명시합니다.
-export default function AnalysisPage({
-    params,
-}: {
-    params: { videoId: string };
-}) {
+// The page component takes no props, as the client component gets the ID via useParams.
+export default function AnalysisPage() {
     return (
         <Suspense fallback={<LoadingAnimation />}>
             <AnalysisClientPage />
