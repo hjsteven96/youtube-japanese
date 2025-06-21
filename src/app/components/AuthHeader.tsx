@@ -50,10 +50,10 @@ export default function AuthHeader() {
             <nav className="max-w-7xl mx-auto flex justify-between items-center">
                 <Link href="/" className="flex items-center space-x-2">
                     <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                        AI English
+                        Lin:cue
                     </span>
                     <span className="hidden sm:inline text-gray-500 text-sm">
-                        with YouTube
+                        링크로 시작하는 영어
                     </span>
                 </Link>
 

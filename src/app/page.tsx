@@ -10,6 +10,7 @@ import RecentVideos from "./components/RecentVideos"; // RecentVideos 컴포넌�
 import { db, auth } from "@/lib/firebase"; // Firebase 임포트
 import { doc, setDoc, collection, addDoc } from "firebase/firestore"; // collection과 addDoc 임포트
 import TrendingVideos from "./components/TrendingVideos";
+import { onAuthStateChanged } from "firebase/auth"; // onAuthStateChanged 임포트
 
 interface VideoInfo {
     url: string;
@@ -23,6 +24,15 @@ export default function Home() {
     const [videoInfo, setVideoInfo] = useState<VideoInfo | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
+    const [user, setUser] = useState<any>(null); // 사용자 상태 추가
+
+    // Firebase Auth 상태 변경 리스너
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+            setUser(currentUser);
+        });
+        return () => unsubscribe();
+    }, []);
 
     const extractVideoId = (url: string): string | null => {
         const youtubeRegex = /(?:v=|\/|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
@@ -107,10 +117,10 @@ export default function Home() {
             <div className="w-full max-w-2xl">
                 <header className="text-center mb-8">
                     <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">
-                        YouTube로 배우는 영어
+                        Lin:cue
                     </h1>
                     <p className="text-gray-600 text-lg">
-                        AI와 함께 영상을 분석하고 실전 영어를 학습해보세요 🎓
+                        YouTube 링크로 배우는 영어 🎓
                     </p>
                 </header>
                 <div className="mb-6">{/* User-info or sign-in button */}</div>
@@ -178,8 +188,14 @@ export default function Home() {
 
                         {/* ★★★ 핵심 변경: 버튼을 Link 컴포넌트로 변경 ★★★ */}
                         <Link
-                            href={`/analysis/${videoInfo.videoId}`}
+                            href={user ? `/analysis/${videoInfo.videoId}` : "#"} // 로그인 상태에 따라 href 변경
                             passHref
+                            onClick={(e) => {
+                                if (!user) {
+                                    e.preventDefault(); // 링크 이동 방지
+                                    alert("로그인 후 이용할 수 있습니다");
+                                }
+                            }}
                             // isTooLong일 경우 클릭 이벤트를 막기 위해 pointer-events-none 사용
                             className={`block text-center w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 ${
                                 isTooLong

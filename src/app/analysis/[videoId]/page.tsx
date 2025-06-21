@@ -35,12 +35,12 @@ export async function generateMetadata({
     }
 
     // ★ 3. 가져온 youtubeTitle과 youtubeDescription을 사용하여 메타데이터를 동적으로 생성합니다.
-    const defaultTitle = "YouTube 영상으로 영어 공부 | AI English";
+    const defaultTitle = "YouTube 영상으로 영어 공부 | lincue";
     const defaultDescription =
         "YouTube 영상을 AI로 분석하여 실전 영어를 학습하세요. 자막, 핵심 표현, AI 대화 연습까지!";
 
     const title = youtubeTitle
-        ? `"${youtubeTitle}"으로 영어 공부 | AI English`
+        ? `유튜브 영상 "${youtubeTitle}"으로 영어 공부하세요 | lincue`
         : defaultTitle;
     const description = youtubeTitle
         ? `'${youtubeTitle}' 영상을 AI로 분석하여 영어를 마스터하세요.`

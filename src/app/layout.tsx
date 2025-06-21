@@ -18,7 +18,7 @@ const notoSansKR = Noto_Sans_KR({
 });
 
 export const metadata: Metadata = {
-    title: "YouTube로 배우는 영어 | AI 영어학습 플랫폼",
+    title: "Lincue - 링크만 넣으면 영어로 큐! YouTube로 배우는 영어",
     description:
         "YouTube 영상을 AI로 분석하여 실전 영어를 학습하세요. 자막, 핵심 표현, AI 대화 연습까지!",
     keywords: [
