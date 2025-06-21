@@ -6,6 +6,10 @@ import { useState, useEffect, useCallback } from "react";
 
 import ReactPlayer from "react-player";
 import Link from "next/link"; // Next.js의 Link 컴포넌트 사용
+import RecentVideos from "./components/RecentVideos"; // RecentVideos 컴포넌트 임포트
+import { db, auth } from "@/lib/firebase"; // Firebase 임포트
+import { doc, setDoc, collection, addDoc } from "firebase/firestore"; // collection과 addDoc 임포트
+import TrendingVideos from "./components/TrendingVideos";
 
 interface VideoInfo {
     url: string;
@@ -44,7 +48,7 @@ export default function Home() {
     }, [urlInput, videoInfo?.videoId]);
 
     const handlePlayerReady = useCallback(
-        (player: any) => {
+        async (player: any) => {
             const videoId = extractVideoId(urlInput);
             if (player && videoId) {
                 const duration = player.getDuration();
@@ -58,6 +62,39 @@ export default function Home() {
                     duration: duration,
                 });
                 setIsLoading(false);
+
+                // Firebase에 최근 본 영상 정보 저장
+                if (auth.currentUser) {
+                    const userUid = auth.currentUser.uid;
+                    const docRef = doc(
+                        db,
+                        "users",
+                        userUid,
+                        "learningHistory",
+                        videoId
+                    );
+                    await setDoc(
+                        docRef,
+                        {
+                            youtubeUrl: urlInput,
+                            timestamp: new Date().toISOString(), // 현재 시간 ISO 8601 형식
+                            lastPlayedTime: 0,
+                            title: title,
+                            duration: duration,
+                        },
+                        { merge: true } // 기존 필드는 유지하고 새 필드만 추가/업데이트
+                    );
+
+                    // Add activity log for REVISIT
+                    await addDoc(collection(db, "videoActivityLogs"), {
+                        videoId: videoId,
+                        activityType: "REVISIT",
+                        userId: userUid,
+                        timestamp: new Date().toISOString(),
+                        youtubeTitle: title,
+                        duration: duration,
+                    });
+                }
             }
         },
         [urlInput]
@@ -67,32 +104,34 @@ export default function Home() {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex flex-col items-center justify-center py-10 px-4">
-            <header className="text-center mb-8">
-                <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">
-                    YouTube로 배우는 영어
-                </h1>
-                <p className="text-gray-600 text-lg">
-                    AI와 함께 영상을 분석하고 실전 영어를 학습해보세요 🎓
-                </p>
-            </header>
-            <div className="mb-6">{/* User-info or sign-in button */}</div>
+            <div className="w-full max-w-2xl">
+                <header className="text-center mb-8">
+                    <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3">
+                        YouTube로 배우는 영어
+                    </h1>
+                    <p className="text-gray-600 text-lg">
+                        AI와 함께 영상을 분석하고 실전 영어를 학습해보세요 🎓
+                    </p>
+                </header>
+                <div className="mb-6">{/* User-info or sign-in button */}</div>
 
-            <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-2xl transition-all duration-300">
-                <div className="mb-6">
-                    <label
-                        htmlFor="youtubeUrl"
-                        className="block text-gray-700 text-sm font-semibold mb-3 flex items-center"
-                    >
-                        <span className="mr-2">🎬</span> YouTube URL 입력
-                    </label>
-                    <input
-                        type="url"
-                        id="youtubeUrl"
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none transition-all duration-300 text-gray-700"
-                        placeholder="https://www.youtube.com/watch?v=..."
-                        value={urlInput}
-                        onChange={(e) => setUrlInput(e.target.value)}
-                    />
+                <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-2xl transition-all duration-300">
+                    <div className="mb-6">
+                        <label
+                            htmlFor="youtubeUrl"
+                            className="block text-gray-700 text-sm font-semibold mb-3 flex items-center"
+                        >
+                            <span className="mr-2">🎬</span> YouTube URL 입력
+                        </label>
+                        <input
+                            type="url"
+                            id="youtubeUrl"
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none transition-all duration-300 text-gray-700"
+                            placeholder="https://www.youtube.com/watch?v=..."
+                            value={urlInput}
+                            onChange={(e) => setUrlInput(e.target.value)}
+                        />
+                    </div>
                 </div>
 
                 <div style={{ display: "none" }}>
@@ -155,6 +194,10 @@ export default function Home() {
                         </Link>
                     </div>
                 )}
+            </div>
+            <div className="w-full max-w-3xl mt-8 px-4 space-y-8">
+                <TrendingVideos />
+                <RecentVideos />
             </div>
         </div>
     );

@@ -8,6 +8,9 @@ import {
     LiveServerMessage,
 } from "@google/genai";
 import { AudioPlaybackScheduler } from "./AudioPlaybackScheduler";
+import { auth, db } from "./firebase"; // Firebase 임포트
+import { collection, addDoc } from "firebase/firestore"; // Firestore 임포트
+import { User } from "firebase/auth";
 
 // 타입 정의
 interface VideoAnalysis {
@@ -26,6 +29,8 @@ interface UseGeminiLiveConversationProps {
     setError: (message: string) => void;
     setActiveTab: (tab: "analysis" | "transcript" | "questions") => void;
     onConversationStart?: () => void; // <--- 이 줄을 추가하세요
+    videoId: string; // Add videoId to props,
+    user: User | null;
 }
 interface UseGeminiLiveConversationResult {
     isRecording: boolean;
@@ -41,6 +46,7 @@ export const useGeminiLiveConversation = ({
     setError,
     setActiveTab,
     onConversationStart, // 2. props에서 콜백 함수를 받도록 추가
+    videoId, // Destructure videoId
 }: UseGeminiLiveConversationProps): UseGeminiLiveConversationResult => {
     const [isRecording, setIsRecording] = useState(false);
     const [isPlayingAudio, setIsPlayingAudio] = useState(false);

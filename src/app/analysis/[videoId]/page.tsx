@@ -5,46 +5,47 @@ import { Suspense } from "react";
 import AnalysisClientPage from "./analysis-client-page";
 import LoadingAnimation from "../../components/LoadingAnimation";
 
-// generateMetadata 함수의 타입을 직접 명시합니다. (Props 인터페이스 사용 안 함)
+// ★ 1. 직접 호출할 함수를 lib 폴더에서 임포트합니다.
+// (이 파일을 먼저 생성해야 합니다. 이전 답변 내용을 참고하세요.)
+import { getYoutubeVideoDetails } from "@/lib/youtube";
+
+// generateMetadata 함수의 타입을 직접 명시합니다.
 export async function generateMetadata({
     params,
 }: {
     params: { videoId: string };
 }): Promise<Metadata> {
     const { videoId } = params;
+    let youtubeTitle: string | null = null;
+    let youtubeDescription: string | null = null;
 
-    async function getYouTubeVideoTitle(vid: string): Promise<string | null> {
-        try {
-            const baseUrl =
-                process.env.NEXT_PUBLIC_APP_URL ||
-                `https://${process.env.VERCEL_URL}` ||
-                "http://localhost:3000";
-            const res = await fetch(
-                `${baseUrl}/api/youtube-data?videoId=${vid}`,
-                { next: { revalidate: 3600 } }
-            );
-            if (!res.ok) {
-                console.error(
-                    `YouTube API fetch failed for ${vid} with status: ${res.status}`
-                );
-                return null;
-            }
-            const data = await res.json();
-            return data.youtubeTitle || null;
-        } catch (error) {
-            console.error("Error in getYouTubeVideoTitle:", error);
-            return null;
+    try {
+        // ★ 2. fetch 대신, 분리된 함수를 직접 호출합니다.
+        const videoDetails = await getYoutubeVideoDetails(videoId);
+        if (videoDetails) {
+            youtubeTitle = videoDetails.youtubeTitle;
+            youtubeDescription = videoDetails.youtubeDescription;
         }
+    } catch (error) {
+        console.error(
+            `Error in generateMetadata for videoId ${videoId}:`,
+            error
+        );
+        // 에러가 발생해도 기본적인 메타데이터를 제공할 수 있도록 null 값을 유지합니다.
     }
 
-    const youtubeTitle = await getYouTubeVideoTitle(videoId);
+    // ★ 3. 가져온 youtubeTitle과 youtubeDescription을 사용하여 메타데이터를 동적으로 생성합니다.
+    const defaultTitle = "YouTube 영상으로 영어 공부 | AI English";
+    const defaultDescription =
+        "YouTube 영상을 AI로 분석하여 실전 영어를 학습하세요. 자막, 핵심 표현, AI 대화 연습까지!";
 
     const title = youtubeTitle
-        ? `YouTube 영상 '${youtubeTitle}'으로 영어 공부 | AI English`
-        : "YouTube 영상으로 영어 공부 | AI English";
+        ? `"${youtubeTitle}"으로 영어 공부 | AI English`
+        : defaultTitle;
     const description = youtubeTitle
-        ? `'${youtubeTitle}' 영상을 AI로 분석하여 자막, 핵심 표현, AI 대화 연습으로 영어를 마스터하세요.`
-        : "YouTube 영상을 AI로 분석하여 실전 영어를 학습하세요. 자막, 핵심 표현, AI 대화 연습까지!";
+        ? `'${youtubeTitle}' 영상을 AI로 분석하여 영어를 마스터하세요.`
+        : defaultDescription;
+
     const imageUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
     const appUrl =
         process.env.NEXT_PUBLIC_APP_URL ||
@@ -86,7 +87,7 @@ export async function generateMetadata({
     };
 }
 
-// 페이지 컴포넌트의 타입도 직접 명시합니다. (Props 인터페이스 사용 안 함)
+// 페이지 컴포넌트의 타입도 직접 명시합니다.
 export default function AnalysisPage({
     params,
 }: {

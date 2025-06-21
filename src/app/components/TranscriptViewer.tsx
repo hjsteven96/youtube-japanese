@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import { User } from "firebase/auth";
-import { doc, setDoc, collection } from "firebase/firestore";
+import { doc, setDoc, collection, addDoc } from "firebase/firestore";
 import { db } from "../../lib/firebase"; // Firestore 인스턴스 경로 확인
 
 interface VideoSegment {
@@ -18,6 +18,12 @@ interface TranscriptViewerProps {
     user: User | null; // 해석 저장에 필요
     youtubeUrl: string; // 해석 저장에 필요
 }
+
+const extractVideoId = (url: string): string | null => {
+    const youtubeRegex = /(?:v=|\/|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+    const match = url.match(youtubeRegex);
+    return match ? match[1] : null;
+};
 
 const TranscriptViewer = ({
     parsedTranscript,

@@ -4,7 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import ReactPlayer from "react-player";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth, db } from "../../../lib/firebase";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, addDoc } from "firebase/firestore";
 
 import LoadingAnimation from "../../components/LoadingAnimation";
 import ConversationModal from "../../components/ConversationModal";
@@ -68,6 +68,8 @@ function AnalysisPageComponent() {
         setError,
         onConversationStart: () => setIsConversationModeActive(true),
         setActiveTab: setActiveTab,
+        videoId: videoId,
+        user: user,
     });
 
     useEffect(() => {
@@ -179,6 +181,19 @@ function AnalysisPageComponent() {
                     ...finalData,
                     timestamp: new Date().toISOString(),
                 });
+
+                // Add activity log for ANALYSIS
+                if (user) {
+                    // Only log if user is logged in
+                    await addDoc(collection(db, "videoActivityLogs"), {
+                        videoId: videoId,
+                        activityType: "ANALYSIS",
+                        userId: user.uid,
+                        timestamp: new Date().toISOString(),
+                        youtubeTitle: metaData.youtubeTitle,
+                        duration: metaData.duration,
+                    });
+                }
 
                 setLoading(false);
             } catch (err: any) {
