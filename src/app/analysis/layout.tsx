@@ -1,14 +1,15 @@
 // src/app/analysis/[videoId]/layout.tsx
+
 import { Metadata } from "next";
+import type { ReactNode } from "react";
 
 // YouTube 영상 정보를 가져오는 함수 (서버 컴포넌트에서 직접 호출)
 async function getYouTubeVideoTitle(videoId: string): Promise<string | null> {
+    // ... (이 함수는 변경할 필요가 없습니다)
     try {
-        // 기존 api/youtube-data 라우트를 직접 fetch하여 사용
         const res = await fetch(
             `${process.env.NEXT_PUBLIC_APP_URL}/api/youtube-data?videoId=${videoId}`,
             {
-                // revalidate 옵션으로 캐싱 전략 설정 (예: 1시간마다 갱신)
                 next: { revalidate: 3600 },
             }
         );
@@ -28,16 +29,13 @@ async function getYouTubeVideoTitle(videoId: string): Promise<string | null> {
     }
 }
 
-interface AnalysisLayoutProps {
-    children: React.ReactNode;
+// 1. generateMetadata를 위한 Props 타입 정의
+type Props = {
     params: { videoId: string };
-}
+};
 
-// generateMetadata 함수는 서버 컴포넌트에서만 사용 가능합니다.
-// 이 레이아웃은 기본적으로 서버 컴포넌트입니다.
-export async function generateMetadata({
-    params,
-}: AnalysisLayoutProps): Promise<Metadata> {
+// generateMetadata 함수는 이 Props 타입을 사용합니다.
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const videoId = params.videoId;
     const youtubeTitle = await getYouTubeVideoTitle(videoId);
 
@@ -47,7 +45,7 @@ export async function generateMetadata({
     const description = youtubeTitle
         ? `${youtubeTitle} 영상을 AI로 분석하여 자막, 핵심 표현, AI 대화 연습까지! 효과적인 영어 학습을 시작해보세요.`
         : "YouTube 영상을 AI로 분석하여 실전 영어를 학습하세요. 자막, 핵심 표현, AI 대화 연습까지!";
-    const imageUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`; // YouTube 썸네일 사용
+    const imageUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
 
     return {
         title: title,
@@ -58,8 +56,8 @@ export async function generateMetadata({
             "AI 영어교육",
             "영어회화",
             "영상학습",
-            youtubeTitle || "", // 영상 제목도 키워드에 포함
-        ].filter(Boolean), // null 또는 빈 문자열 제거
+            youtubeTitle || "",
+        ].filter(Boolean),
         openGraph: {
             title: title,
             description: description,
@@ -68,8 +66,8 @@ export async function generateMetadata({
             images: [
                 {
                     url: imageUrl,
-                    width: 1280, // maxresdefault의 일반적인 너비
-                    height: 720, // maxresdefault의 일반적인 높이
+                    width: 1280,
+                    height: 720,
                     alt: youtubeTitle || "YouTube Video Thumbnail",
                 },
             ],
@@ -84,6 +82,10 @@ export async function generateMetadata({
     };
 }
 
-export default function AnalysisLayout({ children }: AnalysisLayoutProps) {
-    return <>{children}</>; // page.tsx의 내용이 그대로 children으로 전달됩니다.
+// 2. AnalysisLayout 컴포넌트는 필요한 props만 직접 인라인으로 정의합니다.
+// 이 컴포넌트는 params를 사용하지 않으므로 children만 받도록 수정합니다.
+export default function AnalysisLayout({ children }: { children: ReactNode }) {
+    // page.tsx의 내용이 그대로 children으로 전달됩니다.
+    // 레이아웃 자체는 특별한 구조가 필요 없으므로 children만 렌더링합니다.
+    return <>{children}</>;
 }

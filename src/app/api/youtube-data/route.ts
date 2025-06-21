@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
     }
 
     // **중요**: 환경변수 이름이 YOUTUBE_DATA_API_KEY로 통일되어야 합니다.
-    const YOUTUBE_DATA_API_KEY = process.env.NEXT_PUBLIC_YOUTUBE_DATA_API_KEY;
+    const YOUTUBE_DATA_API_KEY = process.env.YOUTUBE_DATA_API_KEY;
 
     if (!YOUTUBE_DATA_API_KEY) {
         console.error("환경 변수 YOUTUBE_DATA_API_KEY가 설정되지 않았습니다.");
