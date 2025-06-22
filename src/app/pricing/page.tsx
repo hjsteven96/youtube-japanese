@@ -99,15 +99,19 @@ export default function PricingPage() {
             <div className="max-w-7xl mx-auto">
                 <div className="text-center">
                     <h2 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
-                        당신에게 맞는 요금제를 선택하세요
+                        학습 잠재력을{" "}
+                        <span className="bg-gradient-to-r from-blue-600 to-purple-500 bg-clip-text text-transparent">
+                            100%
+                        </span>{" "}
+                        끌어올리세요
                     </h2>
                     <p className="mt-4 text-lg text-gray-600">
-                        학습 효율을 극대화하고 싶다면 Plus 또는 Pro를
-                        선택하세요.
+                        당신의 노력이 최고의 결과로 이어지도록, 가장 현명한
+                        플랜을 선택하세요.
                     </p>
                 </div>
 
-                <div className="mt-16 space-y-12 lg:space-y-0 lg:grid lg:grid-cols-3 lg:gap-x-8">
+                <div className="mt-16 space-y-8 lg:space-y-0 lg:grid lg:grid-cols-3 lg:gap-x-8">
                     {planOrder.map((planId) => {
                         const plan = PLANS[planId];
                         const isCurrentPlan = userProfile?.plan === planId;
@@ -115,7 +119,7 @@ export default function PricingPage() {
                         return (
                             <div
                                 key={planId}
-                                className={`relative flex flex-col rounded-2xl border p-8 shadow-sm ${
+                                className={`relative flex flex-col rounded-2xl border p-6 shadow-sm ${
                                     isCurrentPlan
                                         ? "border-blue-500 ring-2 ring-blue-500"
                                         : "border-gray-200"
@@ -154,7 +158,7 @@ export default function PricingPage() {
                                     }
                                 </p>
 
-                                <ul className="mt-8 space-y-4">
+                                <ul className="mt-6 space-y-2">
                                     <li className="flex items-start">
                                         <CheckIcon className="flex-shrink-0 h-6 w-6 text-green-500" />
                                         <span className="ml-3 text-gray-700">
@@ -183,7 +187,7 @@ export default function PricingPage() {
                                     )}
                                 </ul>
 
-                                <div className="mt-auto pt-8">
+                                <div className="mt-auto pt-6">
                                     {user ? (
                                         isCurrentPlan ? (
                                             <button
