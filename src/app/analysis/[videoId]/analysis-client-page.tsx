@@ -47,6 +47,7 @@ const processTranscript = (data: GeminiResponseData): GeminiResponseData => {
 };
 
 function AnalysisPageComponent() {
+    console.log("AnalysisPageComponent re-rendered.");
     const params = useParams();
     const router = useRouter();
     const videoId = params.videoId as string;
@@ -376,12 +377,14 @@ function AnalysisPageComponent() {
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex flex-col items-center py-10 px-4">
-            <button
-                onClick={() => router.push("/")}
-                className="self-start mb-8 ml-4 text-blue-600 hover:text-blue-800 font-semibold"
-            >
-                ← 다른 영상 분석하기
-            </button>
+            <div className="w-full max-w-6xl mx-auto px-4">
+                <button
+                    onClick={() => router.push("/")}
+                    className="mb-8 text-blue-600 hover:text-blue-800 font-semibold"
+                >
+                    ← 다른 영상 공부하기
+                </button>
+            </div>
 
             {loading && <LoadingAnimation />}
 

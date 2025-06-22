@@ -27,6 +27,11 @@ export default function Home() {
     const [error, setError] = useState("");
     const [user, setUser] = useState<any>(null); // 사용자 상태 추가
     const [showLoginAlert, setShowLoginAlert] = useState(false); // 로그인 얼럿 상태 추가
+    const [showAlert, setShowAlert] = useState(false);
+    const [alertMessage, setAlertMessage] = useState({
+        title: "",
+        subtitle: "",
+    });
 
     // Firebase Auth 상태 변경 리스너
     useEffect(() => {
@@ -241,6 +246,48 @@ export default function Home() {
                     onClose={() => setShowLoginAlert(false)} // 배경 클릭 시 닫기
                 />
             )}
+
+            {showAlert && (
+                <Alert
+                    title={alertMessage.title}
+                    subtitle={alertMessage.subtitle}
+                    buttons={[
+                        {
+                            text: "확인",
+                            onClick: () => setShowAlert(false),
+                            isPrimary: true,
+                        },
+                    ]}
+                    onClose={() => setShowAlert(false)}
+                />
+            )}
+
+            {/* ★ 추가: 고객센터 플로팅 버튼 ★ */}
+            <div className="fixed bottom-6 right-6 z-50">
+                <button
+                    onClick={() =>
+                        window.open(
+                            "https://open.kakao.com/o/sl0HG7Ch",
+                            "_blank"
+                        )
+                    }
+                    className="bg-gradient-to-r from-blue-400 to-blue-600 hover:from-blue-500 hover:to-purple-600 text-white font-bold py-3 px-6 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center space-x-2"
+                >
+                    <span>문의나 요청사항이 있다면?</span>
+                    <svg
+                        className="w-6 h-6"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                        xmlns="http://www.w3.org/2000/svg"
+                    >
+                        <path
+                            fillRule="evenodd"
+                            d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.336-3.111A8.933 8.933 0 012 10c0-3.866 3.582-7 8-7s8 3.134 8 7z"
+                            clipRule="evenodd"
+                        ></path>
+                    </svg>
+                </button>
+            </div>
         </div>
     );
 }
