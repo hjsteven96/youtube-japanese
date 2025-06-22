@@ -47,9 +47,7 @@ const VideoPlayer = ({
             </div>
             {title && (
                 <div className="mt-4 mb-6">
-                    <h2 className="text-2xl font-bold text-gray-800">
-                        {title}
-                    </h2>
+                    <h2 className="text-xl font-bold text-gray-800">{title}</h2>
                 </div>
             )}
             <div className="mt-6 bg-gray-50 p-6 rounded-xl">

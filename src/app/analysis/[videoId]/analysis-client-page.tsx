@@ -47,7 +47,6 @@ const processTranscript = (data: GeminiResponseData): GeminiResponseData => {
 };
 
 function AnalysisPageComponent() {
-    console.log("AnalysisPageComponent re-rendered.");
     const params = useParams();
     const router = useRouter();
     const videoId = params.videoId as string;
