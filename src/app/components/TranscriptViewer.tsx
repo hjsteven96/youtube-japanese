@@ -20,6 +20,11 @@ interface TranscriptViewerProps {
     user: User | null;
     youtubeUrl: string;
     onSave: (expression: Omit<SavedExpression, "id">) => Promise<void>;
+    onLoopToggle: (startTime: number, endTime: number) => void;
+    isLooping: boolean;
+    currentLoopStartTime: number | null;
+    currentLoopEndTime: number | null;
+    videoDuration: number | null;
 }
 
 // --- 유틸리티 함수 (변경 없음) ---
@@ -38,6 +43,11 @@ const TranscriptViewer = ({
     user,
     youtubeUrl,
     onSave,
+    onLoopToggle,
+    isLooping,
+    currentLoopStartTime,
+    currentLoopEndTime,
+    videoDuration,
 }: TranscriptViewerProps) => {
     console.log("TranscriptViewer received user:", user);
     const transcriptContainerRef = useRef<HTMLDivElement>(null);
@@ -202,38 +212,73 @@ const TranscriptViewer = ({
         >
             {parsedTranscript.map((segment, index) => {
                 const isCurrent = index === activeSegmentIndex;
+                const nextSegment = parsedTranscript[index + 1];
+                const segmentEndTime = nextSegment
+                    ? nextSegment.time
+                    : videoDuration || segment.time + 5; // 다음 구간이 없으면 영상 끝 또는 5초 뒤
+                const isLoopingThisSegment =
+                    isLooping && currentLoopStartTime === segment.time;
+
                 return (
                     <p
                         key={index}
-                        className={`py-1 px-4 rounded-lg transition-all duration-300 ${
-                            isCurrent
-                                ? "bg-gradient-to-r from-blue-100 to-purple-100 shadow-md transform scale-105"
-                                : "bg-white hover:bg-gray-50"
-                        }`}
+                        className={`py-1 px-4 rounded-lg transition-all duration-300 flex justify-between items-center group
+                            ${
+                                isCurrent
+                                    ? "bg-gradient-to-r from-blue-100 to-purple-100 shadow-md transform scale-105"
+                                    : "bg-white hover:bg-gray-50"
+                            }
+                            ${
+                                isLoopingThisSegment
+                                    ? "border-2 border-purple-500 ring-2 ring-purple-300"
+                                    : ""
+                            }
+                        `}
                     >
-                        <span
-                            className="font-bold text-blue-600 cursor-pointer hover:text-purple-600 transition-colors duration-300"
-                            onClick={() => onSeek(segment.time)}
-                        >
-                            [
-                            {String(Math.floor(segment.time / 60)).padStart(
-                                2,
-                                "0"
-                            )}
-                            :
-                            {String(Math.floor(segment.time % 60)).padStart(
-                                2,
-                                "0"
-                            )}
-                            ]
-                        </span>{" "}
-                        <span
-                            className={`${
-                                isCurrent ? "font-medium" : ""
-                            } whitespace-pre-wrap`}
-                        >
-                            {segment.text}
+                        <span className="flex-1">
+                            <span
+                                className="font-bold text-blue-600 cursor-pointer hover:text-purple-600 transition-colors duration-300"
+                                onClick={() => onSeek(segment.time)}
+                            >
+                                [
+                                {String(Math.floor(segment.time / 60)).padStart(
+                                    2,
+                                    "0"
+                                )}
+                                :
+                                {String(Math.floor(segment.time % 60)).padStart(
+                                    2,
+                                    "0"
+                                )}
+                                ]
+                            </span>{" "}
+                            <span
+                                className={`${
+                                    isCurrent ? "font-medium" : ""
+                                } whitespace-pre-wrap`}
+                            >
+                                {segment.text}
+                            </span>
                         </span>
+                        <button
+                            onClick={() =>
+                                onLoopToggle(segment.time, segmentEndTime)
+                            }
+                            className={`ml-4 p-2 rounded-full transition-all duration-300
+                                ${
+                                    isLoopingThisSegment
+                                        ? "bg-purple-200 text-white"
+                                        : "bg-gray-200 text-gray-600 hover:bg-gray-300 group-hover:opacity-100 opacity-0 lg:opacity-0"
+                                }
+                            `}
+                            title={
+                                isLoopingThisSegment
+                                    ? "구간 반복 중지"
+                                    : "구간 반복 시작"
+                            }
+                        >
+                            {isLoopingThisSegment ? "⏹️" : "🔁"}
+                        </button>
                     </p>
                 );
             })}

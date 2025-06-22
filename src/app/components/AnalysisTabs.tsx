@@ -35,6 +35,11 @@ interface AnalysisTabsProps {
     savedExpressions: SavedExpression[];
     onDeleteExpression: (id: string) => void;
     onAddExpression: (expression: Omit<SavedExpression, "id">) => Promise<void>;
+    onLoopToggle: (startTime: number, endTime: number) => void;
+    isLooping: boolean;
+    currentLoopStartTime: number | null;
+    currentLoopEndTime: number | null;
+    videoDuration: number | null;
 }
 
 const AnalysisTabs = ({
@@ -51,6 +56,11 @@ const AnalysisTabs = ({
     savedExpressions,
     onDeleteExpression,
     onAddExpression,
+    onLoopToggle,
+    isLooping,
+    currentLoopStartTime,
+    currentLoopEndTime,
+    videoDuration,
 }: AnalysisTabsProps) => {
     const parsedTranscript = useMemo((): VideoSegment[] => {
         const safeTranscript = String(transcript || "");
@@ -177,6 +187,11 @@ const AnalysisTabs = ({
                         user={user}
                         youtubeUrl={youtubeUrl}
                         onSave={onAddExpression}
+                        onLoopToggle={onLoopToggle}
+                        isLooping={isLooping}
+                        currentLoopStartTime={currentLoopStartTime}
+                        currentLoopEndTime={currentLoopEndTime}
+                        videoDuration={videoDuration || null}
                     />
                 )}
 

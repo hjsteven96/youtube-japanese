@@ -72,6 +72,9 @@ function AnalysisPageComponent() {
     const [savedExpressions, setSavedExpressions] = useState<SavedExpression[]>(
         []
     );
+    const [isLooping, setIsLooping] = useState(false);
+    const [loopStartTime, setLoopStartTime] = useState<number | null>(null);
+    const [loopEndTime, setLoopEndTime] = useState<number | null>(null);
 
     const {
         isRecording,
@@ -304,6 +307,62 @@ function AnalysisPageComponent() {
         }
     };
 
+    const handleLoopToggle = (startTime: number, endTime: number) => {
+        if (isLooping && loopStartTime === startTime) {
+            console.log(
+                "LOOP: Stopping loop for segment starting at",
+                startTime
+            );
+            setIsLooping(false);
+            setLoopStartTime(null);
+            setLoopEndTime(null);
+            playerRef.current?.seekTo(endTime, "seconds");
+        } else {
+            console.log(
+                "LOOP: Starting loop for segment from",
+                startTime,
+                "to",
+                endTime
+            );
+            setIsLooping(true);
+            setLoopStartTime(startTime);
+            setLoopEndTime(endTime);
+            playerRef.current?.seekTo(startTime, "seconds");
+            setIsPlaying(true);
+        }
+    };
+
+    // ★★★ 추가: 구간 반복 로직 (useEffect) ★★★
+    useEffect(() => {
+        console.log(
+            "LOOP EFFECT: Triggered. isLooping:",
+            isLooping,
+            "currentTime:",
+            currentTime,
+            "loopStartTime:",
+            loopStartTime,
+            "loopEndTime:",
+            loopEndTime
+        );
+        if (
+            isLooping &&
+            loopStartTime !== null &&
+            loopEndTime !== null &&
+            loopStartTime < loopEndTime // 유효한 구간인지 확인
+        ) {
+            // 현재 시간이 종료 시간을 초과하거나 시작 시간보다 작아지면 시작 시간으로 다시 이동
+            if (currentTime >= loopEndTime || currentTime < loopStartTime) {
+                console.log(
+                    "LOOP EFFECT: Seeking to start time",
+                    loopStartTime
+                );
+                if (playerRef.current) {
+                    playerRef.current.seekTo(loopStartTime, "seconds");
+                }
+            }
+        }
+    }, [currentTime, isLooping, loopStartTime, loopEndTime]);
+
     if (isRedirecting) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex flex-col items-center justify-center py-10 px-4">
@@ -343,9 +402,13 @@ function AnalysisPageComponent() {
                         onPlay={() => setIsPlaying(true)}
                         onPause={() => setIsPlaying(false)}
                         onEnded={() => setIsPlaying(false)}
-                        onProgress={({ playedSeconds }) =>
-                            setCurrentTime(playedSeconds)
-                        }
+                        onProgress={(state) => {
+                            setCurrentTime(state.playedSeconds);
+                            console.log(
+                                "Player Progress:",
+                                state.playedSeconds
+                            );
+                        }}
                     />
                     <AnalysisTabs
                         analysis={analysisData.analysis}
@@ -361,6 +424,11 @@ function AnalysisPageComponent() {
                         savedExpressions={savedExpressions}
                         onDeleteExpression={handleDeleteExpression}
                         onAddExpression={handleAddExpression}
+                        onLoopToggle={handleLoopToggle}
+                        isLooping={isLooping}
+                        currentLoopStartTime={loopStartTime}
+                        currentLoopEndTime={loopEndTime}
+                        videoDuration={analysisData.duration || null}
                     />
                 </div>
             )}
