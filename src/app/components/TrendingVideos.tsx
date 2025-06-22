@@ -68,7 +68,7 @@ export default function TrendingVideos() {
     }
 
     return (
-        <div className="mt-8 w-full max-w-3xl mx-auto px-4">
+        <div className="mt-8 w-full max-w-3xl mx-auto px-2">
             <h2 className="text-xl font-bold text-gray-800 mb-4">
                 ✨ 추천 동영상
             </h2>

@@ -64,11 +64,11 @@ export default function RecentVideos() {
     }
 
     return (
-        <div className="mt-8 w-full max-w-3xl mx-auto px-4 pt-16">
+        <div className="mt-4 w-full max-w-3xl mx-auto px-2 pt-16">
             <h2 className="text-xl font-bold text-gray-800 mb-4">
                 🕐최근 본 영상
             </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {recentVideos.slice(0, 4).map((video) => (
                     <RecentVideoItem
                         key={video.videoId}

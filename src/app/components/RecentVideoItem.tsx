@@ -13,7 +13,7 @@ export default function RecentVideoItem({
 
     return (
         <Link href={`/analysis/${videoId}`}>
-            <div className="flex flex-col items-center p-2 rounded-lg hover:bg-gray-100 transition-colors duration-200 cursor-pointer">
+            <div className="flex flex-col items-center p-1 rounded-lg hover:bg-gray-100 transition-colors duration-200 cursor-pointer">
                 <div className="relative w-full pt-[56.25%] mb-2">
                     <img
                         src={thumbnailUrl}

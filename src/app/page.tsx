@@ -292,7 +292,6 @@ export default function Home() {
                             {Math.floor(videoInfo.duration % 60)}초
                         </p>
 
-                        {/* --- ⭐️ 수정된 Link 컴포넌트 --- */}
                         <Link
                             href={
                                 videoInfo
@@ -313,7 +312,7 @@ export default function Home() {
                 )}
             </div>
 
-            <div className="w-full max-w-3xl mt-8 px-4 space-y-8">
+            <div className="w-full max-w-3xl mt-8 px-4 space-y-12">
                 <RecentVideos />
                 <TrendingVideos />
             </div>
