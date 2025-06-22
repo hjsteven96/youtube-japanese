@@ -40,6 +40,7 @@ interface AnalysisTabsProps {
     currentLoopStartTime: number | null;
     currentLoopEndTime: number | null;
     videoDuration: number | null;
+    onShowToast: (message: string) => void;
 }
 
 const AnalysisTabs = ({
@@ -61,6 +62,7 @@ const AnalysisTabs = ({
     currentLoopStartTime,
     currentLoopEndTime,
     videoDuration,
+    onShowToast,
 }: AnalysisTabsProps) => {
     const parsedTranscript = useMemo((): VideoSegment[] => {
         const safeTranscript = String(transcript || "");
@@ -102,8 +104,8 @@ const AnalysisTabs = ({
         <button
             className={`px-6 py-3 font-semibold rounded-t-lg transition-all duration-300 ${
                 activeTab === tabName
-                    ? "text-white bg-gradient-to-r from-blue-500 to-purple-500 shadow-md transform scale-105"
-                    : "text-gray-600 hover:text-gray-800 hover:bg-gray-50"
+                    ? "text-black border-b-2 border-blue-500"
+                    : "text-gray-400 hover:text-gray-600 border-b-2 border-transparent"
             }`}
             onClick={() => setActiveTab(tabName)}
         >
@@ -114,8 +116,8 @@ const AnalysisTabs = ({
     return (
         <div className="w-full lg:w-1/2 flex flex-col h-[600px]">
             <div className="flex space-x-2 mb-4 border-b-2 border-gray-100">
-                <TabButton tabName="transcript" label="📝 자막" />
-                <TabButton tabName="analysis" label="📊 주요 표현" />
+                <TabButton tabName="transcript" label="자막" />
+                <TabButton tabName="analysis" label="주요 표현" />
                 {/* <TabButton tabName="questions" label="💬 AI 대화" /> */}
             </div>
 
@@ -192,6 +194,7 @@ const AnalysisTabs = ({
                         currentLoopStartTime={currentLoopStartTime}
                         currentLoopEndTime={currentLoopEndTime}
                         videoDuration={videoDuration || null}
+                        onShowToast={onShowToast}
                     />
                 )}
 

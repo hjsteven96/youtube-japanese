@@ -25,6 +25,7 @@ interface TranscriptViewerProps {
     currentLoopStartTime: number | null;
     currentLoopEndTime: number | null;
     videoDuration: number | null;
+    onShowToast: (message: string) => void;
 }
 
 // --- 유틸리티 함수 (변경 없음) ---
@@ -48,6 +49,7 @@ const TranscriptViewer = ({
     currentLoopStartTime,
     currentLoopEndTime,
     videoDuration,
+    onShowToast,
 }: TranscriptViewerProps) => {
     console.log("TranscriptViewer received user:", user);
     const transcriptContainerRef = useRef<HTMLDivElement>(null);
@@ -114,11 +116,6 @@ const TranscriptViewer = ({
 
             // 저장이 완료된 후 툴팁을 닫습니다.
             setShowTooltip(false);
-            setAlertMessage({
-                title: "저장 완료",
-                subtitle: "해석 결과가 성공적으로 저장되었습니다!",
-            });
-            setShowAlert(true);
         } catch (error) {
             console.error("해석 결과 저장 중 오류 발생:", error);
             setAlertMessage({
@@ -286,7 +283,7 @@ const TranscriptViewer = ({
             {showTooltip && (
                 <div
                     ref={tooltipRef}
-                    className="absolute z-20 bg-gray-800 text-white text-sm rounded-lg shadow-lg py-2 px-3 flex flex-col space-y-2 max-w-xs min-w-[120px]"
+                    className="absolute z-20 bg-black bg-opacity-80 text-white text-sm rounded-lg shadow-lg py-2 px-3 flex flex-col space-y-2 max-w-xs min-w-[120px]"
                     style={{
                         left: tooltipPosition.x,
                         top: tooltipPosition.y,
@@ -325,7 +322,7 @@ const TranscriptViewer = ({
                                 AI 해석
                             </button>
                             <button
-                                onMouseDown={() => setShowTooltip(false)}
+                                onClick={() => setShowTooltip(false)}
                                 className="hover:bg-gray-700 px-2 py-1 rounded-md"
                             >
                                 X

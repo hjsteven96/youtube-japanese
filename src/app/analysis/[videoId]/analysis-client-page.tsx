@@ -23,6 +23,7 @@ import VideoPlayer from "../../components/VideoPlayer";
 import AnalysisTabs from "../../components/AnalysisTabs";
 import { useGeminiLiveConversation } from "../../../lib/useGeminiLiveConversation";
 import { SavedExpression } from "../../components/SavedExpressions";
+import Toast from "../../components/Toast";
 
 // --- 타입 정의 ---
 interface GeminiResponseData {
@@ -60,6 +61,8 @@ function AnalysisPageComponent() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
     const [isRedirecting, setIsRedirecting] = useState(false);
+    const [showToast, setShowToast] = useState(false);
+    const [toastMessage, setToastMessage] = useState("");
 
     const playerRef = useRef<ReactPlayer>(null);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -107,7 +110,8 @@ function AnalysisPageComponent() {
         console.log("Current user object:", user);
 
         if (!user) {
-            alert("표현을 저장하려면 로그인이 필요합니다.");
+            setToastMessage("표현을 저장하려면 로그인이 필요합니다.");
+            setShowToast(true);
             return;
         }
 
@@ -126,12 +130,13 @@ function AnalysisPageComponent() {
 
             // 화면 상태(State)를 업데이트하여 저장된 표현을 즉시 목록 맨 위에 보여줍니다.
             setSavedExpressions((prev) => [newSavedExpression, ...prev]);
+            setToastMessage("표현이 성공적으로 저장되었습니다!");
+            setShowToast(true);
         } catch (error) {
             console.error("표현 저장 중 오류:", error);
             // 사용자에게 더 구체적인 에러 메시지를 보여줍니다.
-            alert(
-                "표현 저장에 실패했습니다. Firestore 보안 규칙이나 설정을 확인해주세요."
-            );
+            setToastMessage("표현 저장에 실패했습니다. 다시 시도해주세요.");
+            setShowToast(true);
         }
     };
 
@@ -162,7 +167,8 @@ function AnalysisPageComponent() {
 
                 if (!user) {
                     setIsRedirecting(true);
-                    alert("이 영상은 로그인 후 분석할 수 있습니다.");
+                    setToastMessage("이 영상은 로그인 후 분석할 수 있습니다.");
+                    setShowToast(true);
                     router.push("/");
                     return;
                 }
@@ -363,6 +369,11 @@ function AnalysisPageComponent() {
         }
     }, [currentTime, isLooping, loopStartTime, loopEndTime]);
 
+    const handleShowToast = (message: string) => {
+        setToastMessage(message);
+        setShowToast(true);
+    };
+
     if (isRedirecting) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex flex-col items-center justify-center py-10 px-4">
@@ -375,7 +386,7 @@ function AnalysisPageComponent() {
     }
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex flex-col items-center py-10 px-4">
+        <div className="min-h-screen flex flex-col items-center py-10 bg-gradient-to-br from-blue-50 to-purple-50">
             <div className="w-full max-w-6xl mx-auto px-4">
                 <button
                     onClick={() => router.push("/")}
@@ -388,13 +399,13 @@ function AnalysisPageComponent() {
             {loading && <LoadingAnimation />}
 
             {error && !loading && authInitialized && !analysisData && (
-                <p className="text-red-500 text-lg mt-4 text-center p-4 bg-red-100 rounded-lg">
+                <p className="text-red-500 text-lg mt-4 text-center p-4 bg-red-100 rounded-lg w-full max-w-6xl mx-auto px-4">
                     ⚠️ {error}
                 </p>
             )}
 
             {analysisData && !loading && authInitialized && !error && (
-                <div className="w-full max-w-6xl bg-white p-4 md:p-8 rounded-2xl shadow-xl flex flex-col lg:flex-row lg:space-x-8 mt-4">
+                <div className="w-full max-w-6xl bg-white p-4 md:p-8 rounded-2xl shadow-xl flex flex-col lg:flex-row lg:space-x-8 mt-4 mx-auto">
                     <VideoPlayer
                         url={`https://www.youtube.com/watch?v=${videoId}`}
                         title={analysisData.youtubeTitle || videoTitle}
@@ -431,6 +442,7 @@ function AnalysisPageComponent() {
                         currentLoopStartTime={loopStartTime}
                         currentLoopEndTime={loopEndTime}
                         videoDuration={analysisData.duration || null}
+                        onShowToast={handleShowToast}
                     />
                 </div>
             )}
@@ -444,6 +456,12 @@ function AnalysisPageComponent() {
                 isRecording={isRecording}
                 isPlayingAudio={isPlayingAudio}
                 selectedQuestion={selectedQuestion}
+            />
+
+            <Toast
+                message={toastMessage}
+                isVisible={showToast}
+                onClose={() => setShowToast(false)}
             />
         </div>
     );
