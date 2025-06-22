@@ -90,10 +90,7 @@ export default function RootLayout({
         <html lang="ko" className={`${inter.variable} ${notoSansKR.variable}`}>
             <head>
                 {/* 추가적인 메타 태그 */}
-                <meta
-                    name="application-name"
-                    content="YouTube English Learning"
-                />
+                <meta name="Lin:cue" content="YouTube English Learning" />
                 <meta name="apple-mobile-web-app-capable" content="yes" />
                 <meta
                     name="apple-mobile-web-app-status-bar-style"

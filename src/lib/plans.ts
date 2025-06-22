@@ -3,21 +3,24 @@
 export const PLANS = {
     free: {
         name: "무료 사용자",
-        dailyAnalysisLimit: 1, // 하루 분석 3회 제한
+        dailyAnalysisLimit: 2, // 하루 분석 3회 제한
         maxVideoDuration: 600, // 10분 (600초)
         aiConversation: false, // AI 대화 기능 제한
+        price: "무료",
     },
     plus: {
         name: "Plus 사용자",
         dailyAnalysisLimit: 5, // 하루 분석 20회 제한
         maxVideoDuration: 1200, // 30분 (1800초)
         aiConversation: true, // AI 대화 기능 사용 가능
+        price: "₩0",
     },
     pro: {
         name: "Pro 사용자",
         dailyAnalysisLimit: 10, // 무제한
         maxVideoDuration: 3600, // 2시간 (7200초)
         aiConversation: true, // AI 대화 기능 사용 가능
+        price: "₩19,900",
     },
 };
 

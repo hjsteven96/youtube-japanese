@@ -1,5 +1,3 @@
-// src/lib/user.ts
-import { NextRequest, NextResponse } from "next/server";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { User } from "firebase/auth";
 import { db } from "./firebase";
@@ -25,6 +23,24 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
 export async function createUserProfile(user: User): Promise<UserProfile> {
     const existingProfile = await getUserProfile(user.uid);
     if (existingProfile) {
+        // 날짜가 바뀌었는지 확인하고 사용량을 초기화하는 로직을 추가할 수 있습니다.
+        const today = new Date().toISOString().split("T")[0];
+        if (existingProfile.usage?.lastAnalysisDate !== today) {
+            const userDocRef = doc(db, "users", user.uid);
+            await setDoc(
+                userDocRef,
+                {
+                    usage: {
+                        analysisCount: 0,
+                        lastAnalysisDate: today,
+                    },
+                },
+                { merge: true }
+            );
+            // 업데이트된 프로필을 반환하기 위해 existingProfile 객체를 수정합니다.
+            existingProfile.usage.analysisCount = 0;
+            existingProfile.usage.lastAnalysisDate = today;
+        }
         return existingProfile;
     }
 

@@ -15,6 +15,8 @@ import {
     getDocs,
     deleteDoc,
     orderBy,
+    updateDoc, // [추가] Firestore 문서 업데이트를 위해 추가
+    increment, // [추가] 원자적 카운트 증가를 위해 추가
 } from "firebase/firestore";
 
 import LoadingAnimation from "../../components/LoadingAnimation";
@@ -24,8 +26,12 @@ import AnalysisTabs from "../../components/AnalysisTabs";
 import { useGeminiLiveConversation } from "../../../lib/useGeminiLiveConversation";
 import { SavedExpression } from "../../components/SavedExpressions";
 import Toast from "../../components/Toast";
+import Alert from "../../components/Alert";
 
-// --- 타입 정의 ---
+import { createUserProfile } from "../../../lib/user";
+import { PLANS, UserProfile } from "../../../lib/plans";
+
+// --- 타입 정의 (변경 없음) ---
 interface GeminiResponseData {
     analysis: {
         summary: string;
@@ -53,6 +59,7 @@ function AnalysisPageComponent() {
     const videoId = params.videoId as string;
 
     const [user, setUser] = useState<User | null>(null);
+    const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [authInitialized, setAuthInitialized] = useState(false);
     const [analysisData, setAnalysisData] = useState<GeminiResponseData | null>(
         null
@@ -63,6 +70,16 @@ function AnalysisPageComponent() {
     const [isRedirecting, setIsRedirecting] = useState(false);
     const [showToast, setShowToast] = useState(false);
     const [toastMessage, setToastMessage] = useState("");
+    const [showAlertModal, setShowAlertModal] = useState(false);
+    const [alertModalContent, setAlertModalContent] = useState({
+        title: "",
+        subtitle: "",
+        buttons: [] as {
+            text: string;
+            onClick: () => void;
+            isPrimary?: boolean;
+        }[],
+    });
 
     const playerRef = useRef<ReactPlayer>(null);
     const [isPlaying, setIsPlaying] = useState(false);
@@ -79,6 +96,11 @@ function AnalysisPageComponent() {
     const [loopStartTime, setLoopStartTime] = useState<number | null>(null);
     const [loopEndTime, setLoopEndTime] = useState<number | null>(null);
 
+    // AI 대화 기능 사용 가능 여부 확인
+    const canUseAIConversation = userProfile
+        ? PLANS[userProfile.plan].aiConversation
+        : false;
+
     const {
         isRecording,
         isPlayingAudio,
@@ -89,15 +111,30 @@ function AnalysisPageComponent() {
         transcript: analysisData?.transcript_text || "",
         geminiAnalysis: analysisData?.analysis ?? null,
         setError,
-        onConversationStart: () => setIsConversationModeActive(true),
+        onConversationStart: () => {
+            if (!canUseAIConversation) {
+                setToastMessage(
+                    "AI 대화는 Plus 등급 이상부터 사용 가능합니다."
+                );
+                setShowToast(true);
+                return;
+            }
+            setIsConversationModeActive(true);
+        },
         setActiveTab: setActiveTab,
         videoId: videoId,
         user: user,
     });
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+        const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             setUser(currentUser);
+            if (currentUser) {
+                const profile = await createUserProfile(currentUser);
+                setUserProfile(profile);
+            } else {
+                setUserProfile(null);
+            }
             setAuthInitialized(true);
         });
         return () => unsubscribe();
@@ -116,25 +153,21 @@ function AnalysisPageComponent() {
         }
 
         try {
-            // Firestore에 데이터를 추가하고, 자동으로 생성된 ID를 가진 문서 참조를 받습니다.
             const docRef = await addDoc(
                 collection(db, `users/${user.uid}/savedInterpretations`),
                 newExpressionData
             );
 
-            // 저장이 성공하면, 반환된 ID를 포함하여 화면에 표시할 객체를 만듭니다.
             const newSavedExpression: SavedExpression = {
                 id: docRef.id,
                 ...newExpressionData,
             };
 
-            // 화면 상태(State)를 업데이트하여 저장된 표현을 즉시 목록 맨 위에 보여줍니다.
             setSavedExpressions((prev) => [newSavedExpression, ...prev]);
             setToastMessage("표현이 성공적으로 저장되었습니다!");
             setShowToast(true);
         } catch (error) {
             console.error("표현 저장 중 오류:", error);
-            // 사용자에게 더 구체적인 에러 메시지를 보여줍니다.
             setToastMessage("표현 저장에 실패했습니다. 다시 시도해주세요.");
             setShowToast(true);
         }
@@ -153,6 +186,7 @@ function AnalysisPageComponent() {
             setAnalysisData(null);
 
             try {
+                // 1. 캐시된 데이터 확인
                 const docId = `${videoId}`;
                 const docRef = doc(db, "videoAnalyses", docId);
                 const docSnap = await getDoc(docRef);
@@ -162,10 +196,14 @@ function AnalysisPageComponent() {
                         docSnap.data() as GeminiResponseData
                     );
                     if (isMounted) setAnalysisData(cachedData);
+                    // 캐시 조회는 사용량에 포함시키지 않음
                     return;
                 }
 
-                if (!user) {
+                // --- [수정] 이하 캐시가 없을 경우, 새로운 분석 로직 ---
+
+                // 2. 사용자 로그인 및 프로필 확인
+                if (!user || !userProfile) {
                     setIsRedirecting(true);
                     setToastMessage("이 영상은 로그인 후 분석할 수 있습니다.");
                     setShowToast(true);
@@ -173,6 +211,20 @@ function AnalysisPageComponent() {
                     return;
                 }
 
+                // 3. [추가] 일일 분석 횟수 제한 확인
+                const plan = PLANS[userProfile.plan];
+                const today = new Date().toISOString().split("T")[0];
+                if (
+                    userProfile.usage.lastAnalysisDate === today &&
+                    userProfile.usage.analysisCount >= plan.dailyAnalysisLimit
+                ) {
+                    setError(
+                        `오늘의 분석 횟수(${userProfile.usage.analysisCount}/${plan.dailyAnalysisLimit}회)를 모두 사용하셨습니다. 내일 다시 시도해주세요.`
+                    );
+                    return;
+                }
+
+                // 4. 영상 메타데이터 가져오기 및 영상 길이 제한 확인
                 const metaRes = await fetch(
                     `/api/youtube-data?videoId=${videoId}`
                 );
@@ -183,26 +235,42 @@ function AnalysisPageComponent() {
                             "영상 정보를 가져오는 데 실패했습니다."
                     );
                 }
-
                 const metaData = await metaRes.json();
                 if (!isMounted) return;
                 setVideoTitle(metaData.youtubeTitle);
 
-                if (metaData.duration > 600) {
-                    setError("10분 이하의 영상만 분석할 수 있습니다.");
+                if (metaData.duration > plan.maxVideoDuration) {
+                    setError(
+                        `${plan.name} 등급은 ${Math.floor(
+                            plan.maxVideoDuration / 60
+                        )}분 이하의 영상만 분석할 수 있습니다.`
+                    );
                     return;
                 }
 
+                // 5. [추가] 분석 횟수 차감 (API 호출 직전)
+                const userDocRef = doc(db, "users", user.uid);
+                await updateDoc(userDocRef, {
+                    "usage.analysisCount": increment(1),
+                    "usage.lastAnalysisDate": today,
+                });
+
+                // 6. AI 분석 API 호출
                 const transcriptRes = await fetch("/api/transcript", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         youtubeUrl: `https://www.youtube.com/watch?v=${videoId}`,
+                        userId: user.uid,
                     }),
                 });
 
                 if (!transcriptRes.ok) {
                     const errorData = await transcriptRes.json();
+                    // 분석 실패 시, 차감했던 횟수 복구
+                    await updateDoc(userDocRef, {
+                        "usage.analysisCount": increment(-1),
+                    });
                     throw new Error(
                         errorData.error || "영상 분석에 실패했습니다."
                     );
@@ -218,21 +286,20 @@ function AnalysisPageComponent() {
 
                 if (isMounted) setAnalysisData(finalData);
 
+                // 7. 분석 결과 캐싱 및 로그 저장
                 await setDoc(docRef, {
                     ...finalData,
                     timestamp: new Date().toISOString(),
                 });
 
-                if (user) {
-                    await addDoc(collection(db, "videoActivityLogs"), {
-                        videoId: videoId,
-                        activityType: "ANALYSIS",
-                        userId: user.uid,
-                        timestamp: new Date().toISOString(),
-                        youtubeTitle: metaData.youtubeTitle,
-                        duration: metaData.duration,
-                    });
-                }
+                await addDoc(collection(db, "videoActivityLogs"), {
+                    videoId: videoId,
+                    activityType: "ANALYSIS_SUCCESS",
+                    userId: user.uid,
+                    timestamp: new Date().toISOString(),
+                    youtubeTitle: metaData.youtubeTitle,
+                    duration: metaData.duration,
+                });
             } catch (err: any) {
                 if (isMounted) {
                     setError(err.message || "알 수 없는 오류가 발생했습니다.");
@@ -247,8 +314,14 @@ function AnalysisPageComponent() {
         return () => {
             isMounted = false;
         };
-    }, [videoId, user, authInitialized, router]);
+    }, [videoId, user, userProfile, authInitialized, router]);
 
+    // ... (이하 나머지 코드는 변경 없음) ...
+    // ...
+    // ... (handleDeleteExpression, handleSeek, handleLoopToggle 등) ...
+    // ...
+
+    // 이펙트 훅은 변경사항이 없습니다.
     useEffect(() => {
         if (!user || !videoId || !analysisData) {
             setSavedExpressions([]);
@@ -288,22 +361,40 @@ function AnalysisPageComponent() {
     const handleDeleteExpression = async (expressionId: string) => {
         if (!user) return;
 
-        if (confirm("이 표현을 삭제하시겠습니까?")) {
-            try {
-                const docRef = doc(
-                    db,
-                    `users/${user.uid}/savedInterpretations`,
-                    expressionId
-                );
-                await deleteDoc(docRef);
-                setSavedExpressions((prev) =>
-                    prev.filter((exp) => exp.id !== expressionId)
-                );
-            } catch (error) {
-                console.error("표현 삭제 중 오류:", error);
-                alert("삭제에 실패했습니다.");
-            }
-        }
+        setAlertModalContent({
+            title: "표현 삭제 확인",
+            subtitle: "이 표현을 정말로 삭제하시겠습니까?",
+            buttons: [
+                {
+                    text: "취소",
+                    onClick: () => setShowAlertModal(false),
+                    isPrimary: false,
+                },
+                {
+                    text: "삭제",
+                    onClick: async () => {
+                        setShowAlertModal(false);
+                        try {
+                            const docRef = doc(
+                                db,
+                                `users/${user.uid}/savedInterpretations`,
+                                expressionId
+                            );
+                            await deleteDoc(docRef);
+                            setSavedExpressions((prev) =>
+                                prev.filter((exp) => exp.id !== expressionId)
+                            );
+                            handleShowToast("표현이 삭제되었습니다.");
+                        } catch (error) {
+                            console.error("표현 삭제 중 오류:", error);
+                            handleShowToast("삭제에 실패했습니다.");
+                        }
+                    },
+                    isPrimary: true,
+                },
+            ],
+        });
+        setShowAlertModal(true);
     };
 
     const handleSeek = (seconds: number) => {
@@ -338,7 +429,6 @@ function AnalysisPageComponent() {
         }
     };
 
-    // ★★★ 추가: 구간 반복 로직 (useEffect) ★★★
     useEffect(() => {
         console.log(
             "LOOP EFFECT: Triggered. isLooping:",
@@ -354,9 +444,8 @@ function AnalysisPageComponent() {
             isLooping &&
             loopStartTime !== null &&
             loopEndTime !== null &&
-            loopStartTime < loopEndTime // 유효한 구간인지 확인
+            loopStartTime < loopEndTime
         ) {
-            // 현재 시간이 종료 시간을 초과하거나 시작 시간보다 작아지면 시작 시간으로 다시 이동
             if (currentTime >= loopEndTime || currentTime < loopStartTime) {
                 console.log(
                     "LOOP EFFECT: Seeking to start time",
@@ -385,6 +474,7 @@ function AnalysisPageComponent() {
         );
     }
 
+    // JSX 렌더링 부분은 변경사항 없습니다.
     return (
         <div className="min-h-screen flex flex-col items-center py-10 bg-gradient-to-br from-blue-50 to-purple-50">
             <div className="w-full max-w-6xl mx-auto px-4">
@@ -463,6 +553,15 @@ function AnalysisPageComponent() {
                 isVisible={showToast}
                 onClose={() => setShowToast(false)}
             />
+
+            {showAlertModal && (
+                <Alert
+                    title={alertModalContent.title}
+                    subtitle={alertModalContent.subtitle}
+                    buttons={alertModalContent.buttons}
+                    onClose={() => setShowAlertModal(false)}
+                />
+            )}
         </div>
     );
 }
