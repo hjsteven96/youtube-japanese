@@ -222,8 +222,8 @@ const TranscriptViewer = ({
                         className={`py-1 px-4 rounded-lg transition-all duration-300 flex justify-between items-center group
                             ${
                                 isCurrent
-                                    ? "bg-gradient-to-r from-blue-100 to-purple-100 shadow-md transform scale-105"
-                                    : "bg-white hover:bg-gray-50"
+                                    ? "bg-gradient-to-r from-blue-100/10 to-purple-100/10 shadow-md transform scale-104"
+                                    : "bg-white"
                             }
                             ${
                                 isLoopingThisSegment
@@ -265,7 +265,7 @@ const TranscriptViewer = ({
                                 ${
                                     isLoopingThisSegment
                                         ? "bg-purple-200 text-white"
-                                        : "bg-gray-200 text-gray-600 hover:bg-gray-300 group-hover:opacity-100 opacity-0 lg:opacity-0"
+                                        : "bg-gray-100 text-gray-600 hover:bg-gray-200 group-hover:opacity-100 opacity-0 lg:opacity-0"
                                 }
                             `}
                             title={

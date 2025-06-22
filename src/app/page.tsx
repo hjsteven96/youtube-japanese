@@ -336,11 +336,22 @@ export default function Home() {
                             "_blank"
                         )
                     }
-                    className="bg-gradient-to-r from-blue-100 to-white-300 hover:from-blue-200 hover:to-purple-200 text-gray-700 font-semi-bold py-3 px-6 rounded-full shadow-lg transition-all duration-300 transform hover:scale-105 flex items-center space-x-2"
+                    className="relative bg-gradient-to-r from-blue-300/80 to-white/30
+               backdrop-blur-md border border-white/30
+               text-gray-700 font-semibold py-3 px-6 rounded-full
+               shadow-md transition-all duration-300
+               hover:from-blue-300/60 hover:to-blue-100/40 hover:scale-105
+               flex items-center space-x-2"
                 >
-                    <span>문의나 요청사항이 있다면?</span>
+                    {/* 모바일: ‘문의하기’, 데스크탑: 긴 문구 */}
+                    <span className="md:hidden">문의하기</span>
+                    <span className="hidden md:inline">
+                        문의나 요청사항이 있다면?
+                    </span>
+
+                    {/* 모바일에서 더 작은 아이콘, md 이상에서 기본 크기 */}
                     <svg
-                        className="w-6 h-6"
+                        className="w-4 h-4 md:w-6 md:h-6"
                         fill="currentColor"
                         viewBox="0 0 20 20"
                         xmlns="http://www.w3.org/2000/svg"
@@ -349,7 +360,7 @@ export default function Home() {
                             fillRule="evenodd"
                             d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.336-3.111A8.933 8.933 0 012 10c0-3.866 3.582-7 8-7s8 3.134 8 7z"
                             clipRule="evenodd"
-                        ></path>
+                        />
                     </svg>
                 </button>
             </div>
