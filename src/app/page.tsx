@@ -225,7 +225,7 @@ export default function Home() {
                 {/* Added pt-20 for header spacing */}
                 <div className="w-full max-w-2xl pt-10">
                     <header className="text-center mb-8">
-                        <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3 flex items-center justify-center">
+                        <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-1 flex items-center justify-center md:leading-loose">
                             Ling:to
                             <span className="ml-2 text-base font-normal text-gray-400 opacity-80">
                                 Beta
