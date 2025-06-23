@@ -1,7 +1,7 @@
-import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app"; 
+import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
 import { getAuth, Auth } from "firebase/auth";
 import { getFirestore, Firestore } from "firebase/firestore";
-
+import { getAnalytics as getClientAnalytics } from "firebase/analytics";
 
 // Initialize Firebase services
 const firebaseConfig = {
@@ -13,19 +13,18 @@ const firebaseConfig = {
     appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
     measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
-const app: FirebaseApp = !getApps().length ? initializeApp(firebaseConfig) : getApp();
+const app: FirebaseApp = !getApps().length
+    ? initializeApp(firebaseConfig)
+    : getApp();
 const auth: Auth = getAuth(app);
-const db: Firestore = getFirestore(app, 'youtube-english');// 데이터베이스 이름 지정은 선택사항입니다.
+const db: Firestore = getFirestore(app, "youtube-english"); // 데이터베이스 이름 지정은 선택사항입니다.
 
 // Check if window is defined to ensure client-side initialization
 const getAnalytics = () => {
     if (typeof window !== "undefined") {
-        const { getAnalytics: getClientAnalytics } = require("firebase/analytics");
         return getClientAnalytics(app);
     }
     return null;
 };
 
 export { app, auth, db, getAnalytics };
-
-

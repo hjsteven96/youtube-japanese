@@ -2,7 +2,7 @@
 "use client";
 
 import React from "react";
-
+import { Timestamp } from "firebase/firestore";
 // 👇 [수정 확인] interface에 아래 필드들이 모두 포함되어 있는지 확인해주세요.
 export interface SavedExpression {
     id: string; // Firestore 문서 ID
@@ -10,7 +10,7 @@ export interface SavedExpression {
     interpretation: string;
     youtubeUrl: string;
     videoId: string;
-    timestamp: any; // Date 객체와 Firestore Timestamp를 모두 다루기 위해 any로 설정
+    timestamp: Timestamp | Date; // Use a union type
 }
 
 interface SavedExpressionsProps {

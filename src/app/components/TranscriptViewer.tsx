@@ -56,16 +56,24 @@ const TranscriptViewer = ({
     const tooltipRef = useRef<HTMLDivElement>(null);
     const segmentRefs = useRef<(HTMLParagraphElement | null)[]>([]);
 
-    const [selectedForActionIndex, setSelectedForActionIndex] = useState<number | null>(null);
+    const [selectedForActionIndex, setSelectedForActionIndex] = useState<
+        number | null
+    >(null);
     const isInitialRender = useRef(true);
     const [showTooltip, setShowTooltip] = useState(false);
     const [tooltipText, setTooltipText] = useState("");
     const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
-    const [interpretationResult, setInterpretationResult] = useState<string | null>(null);
+    const [interpretationResult, setInterpretationResult] = useState<
+        string | null
+    >(null);
     const [isInterpreting, setIsInterpreting] = useState(false);
-    const [selectedFullSentenceContext, setSelectedFullSentenceContext] = useState<string>("");
+    const [selectedFullSentenceContext, setSelectedFullSentenceContext] =
+        useState<string>("");
     const [showAlert, setShowAlert] = useState(false);
-    const [alertMessage, setAlertMessage] = useState({ title: "", subtitle: "" });
+    const [alertMessage, setAlertMessage] = useState({
+        title: "",
+        subtitle: "",
+    });
 
     // 스크롤 제어 로직 (변경 없음)
     useEffect(() => {
@@ -75,7 +83,7 @@ const TranscriptViewer = ({
             isInitialRender.current = false; // 플래그를 false로 바꿔 다음부터는 정상 작동하도록 함
             return;
         }
-     
+
         const activeElement = segmentRefs.current[activeSegmentIndex];
         if (activeElement) {
             activeElement.scrollIntoView({
@@ -95,8 +103,12 @@ const TranscriptViewer = ({
         if (selectedText && selectedText.length > 0) {
             // 선택 영역이 현재 컴포넌트 내에 있는지 확인 (가장 안정적인 방법)
             const containerNode = transcriptContainerRef.current;
-            if (!containerNode || !selection.anchorNode || !containerNode.contains(selection.anchorNode)) {
-                 // 선택이 이 컴포넌트 밖에서 시작되었으면 무시
+            if (
+                !containerNode ||
+                !selection.anchorNode ||
+                !containerNode.contains(selection.anchorNode)
+            ) {
+                // 선택이 이 컴포넌트 밖에서 시작되었으면 무시
                 return;
             }
 
@@ -111,9 +123,12 @@ const TranscriptViewer = ({
             setTooltipText(selectedText);
 
             const parentElement = selection.anchorNode?.parentElement;
-            const fullSentence = parentElement?.textContent?.replace(/\[\d{2}:\d{2}\]\s*/g, "").trim() || "";
+            const fullSentence =
+                parentElement?.textContent
+                    ?.replace(/\[\d{2}:\d{2}\]\s*/g, "")
+                    .trim() || "";
             setSelectedFullSentenceContext(fullSentence || selectedText);
-            
+
             setTooltipPosition({ x: xPos, y: yPos });
             setShowTooltip(true);
         } else {
@@ -122,30 +137,29 @@ const TranscriptViewer = ({
             }
         }
     };
-    
+
     // [핵심 수정] 데스크톱과 모바일을 위한 이벤트 핸들러 분리 및 결합
     useEffect(() => {
         const handleSelection = () => {
             // setTimeout으로 감싸 모바일에서의 타이밍 이슈 해결
             setTimeout(showOrHideTooltip, 0);
         };
-        
+
         const container = transcriptContainerRef.current;
         if (container) {
             // 데스크톱용 이벤트
-            container.addEventListener('mouseup', handleSelection);
+            container.addEventListener("mouseup", handleSelection);
             // 모바일용 이벤트
-            document.addEventListener('selectionchange', handleSelection);
+            document.addEventListener("selectionchange", handleSelection);
         }
 
         return () => {
             if (container) {
-                container.removeEventListener('mouseup', handleSelection);
+                container.removeEventListener("mouseup", handleSelection);
             }
-            document.removeEventListener('selectionchange', handleSelection);
+            document.removeEventListener("selectionchange", handleSelection);
         };
     }, [isInterpreting]); // isInterpreting이 변경될 때 리스너를 다시 설정하여 최신 상태 참조
-
 
     const handleLineClick = (index: number) => {
         if (selectedForActionIndex === index) {
@@ -154,17 +168,23 @@ const TranscriptViewer = ({
             setSelectedForActionIndex(index);
         }
     };
-    
+
     const handleSaveInterpretation = async () => {
         if (!user || !tooltipText || !interpretationResult || !youtubeUrl) {
-            setAlertMessage({ title: "저장 오류", subtitle: "저장할 데이터가 부족합니다." });
+            setAlertMessage({
+                title: "저장 오류",
+                subtitle: "저장할 데이터가 부족합니다.",
+            });
             setShowAlert(true);
             return;
         }
 
         const videoId = extractVideoId(youtubeUrl);
         if (!videoId) {
-            setAlertMessage({ title: "저장 오류", subtitle: "유효한 YouTube 영상 ID를 찾을 수 없습니다." });
+            setAlertMessage({
+                title: "저장 오류",
+                subtitle: "유효한 YouTube 영상 ID를 찾을 수 없습니다.",
+            });
             setShowAlert(true);
             return;
         }
@@ -182,7 +202,10 @@ const TranscriptViewer = ({
             setShowTooltip(false);
         } catch (error) {
             console.error("해석 결과 저장 중 오류 발생:", error);
-            setAlertMessage({ title: "저장 오류", subtitle: "해석 결과 저장에 실패했습니다." });
+            setAlertMessage({
+                title: "저장 오류",
+                subtitle: "해석 결과 저장에 실패했습니다.",
+            });
             setShowAlert(true);
         }
     };
@@ -211,7 +234,7 @@ const TranscriptViewer = ({
             setIsInterpreting(false);
         }
     };
-    
+
     return (
         <div
             ref={transcriptContainerRef}
@@ -221,20 +244,35 @@ const TranscriptViewer = ({
             {parsedTranscript.map((segment, index) => {
                 const isCurrent = index === activeSegmentIndex;
                 const nextSegment = parsedTranscript[index + 1];
-                const segmentEndTime = nextSegment ? nextSegment.time : videoDuration || segment.time + 5;
-                const isLoopingThisSegment = isLooping && currentLoopStartTime === segment.time;
+                const segmentEndTime = nextSegment
+                    ? nextSegment.time
+                    : videoDuration || segment.time + 5;
+                const isLoopingThisSegment =
+                    isLooping && currentLoopStartTime === segment.time;
                 const isSelectedForAction = selectedForActionIndex === index;
-                
-                const isButtonVisible = isLoopingThisSegment || isSelectedForAction;
+
+                const isButtonVisible =
+                    isLoopingThisSegment || isSelectedForAction;
 
                 return (
                     <p
                         key={index}
-                        ref={(el) => { if (segmentRefs.current) segmentRefs.current[index] = el; }}
+                        ref={(el) => {
+                            if (segmentRefs.current)
+                                segmentRefs.current[index] = el;
+                        }}
                         onClick={() => handleLineClick(index)}
                         className={`relative group flex items-center min-h-[44px] cursor-pointer transition-all duration-300 pl-2 pr-2 p-2
-                            ${isCurrent ? "transform scale-103 bg-blue-50" : "bg-white"}
-                            ${isLoopingThisSegment ? "ring-2 ring-purple-300" : ""}
+                            ${
+                                isCurrent
+                                    ? "transform scale-103 bg-blue-50"
+                                    : "bg-white"
+                            }
+                            ${
+                                isLoopingThisSegment
+                                    ? "ring-2 ring-purple-300"
+                                    : ""
+                            }
                         `}
                     >
                         <span onClick={(e) => e.stopPropagation()}>
@@ -242,17 +280,30 @@ const TranscriptViewer = ({
                                 className="text-blue-500 hover:text-purple-600 transition-colors duration-300"
                                 onClick={() => onSeek(segment.time)}
                             >
-                                [{String(Math.floor(segment.time / 60)).padStart(2, "0")}:
-                                {String(Math.floor(segment.time % 60)).padStart(2, "0")}]
+                                [
+                                {String(Math.floor(segment.time / 60)).padStart(
+                                    2,
+                                    "0"
+                                )}
+                                :
+                                {String(Math.floor(segment.time % 60)).padStart(
+                                    2,
+                                    "0"
+                                )}
+                                ]
                             </span>{" "}
-                            <span className={`${isCurrent ? "font-medium" : "text-gray-600"} whitespace-pre-wrap`}>
+                            <span
+                                className={`${
+                                    isCurrent ? "font-medium" : "text-gray-600"
+                                } whitespace-pre-wrap`}
+                            >
                                 {segment.text}
                             </span>
                         </span>
 
                         <button
                             onClick={(e) => {
-                                e.stopPropagation(); 
+                                e.stopPropagation();
                                 onLoopToggle(segment.time, segmentEndTime);
                             }}
                             className={`absolute right-3 top-1/2 transform -translate-y-1/2 p-2 rounded-full transition-all duration-300
@@ -263,11 +314,15 @@ const TranscriptViewer = ({
                                 }
                                 ${
                                     isButtonVisible
-                                        ? 'opacity-100 pointer-events-auto'
-                                        : 'opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto'
+                                        ? "opacity-100 pointer-events-auto"
+                                        : "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto"
                                 }
                             `}
-                            title={isLoopingThisSegment ? "구간 반복 중지" : "구간 반복 시작"}
+                            title={
+                                isLoopingThisSegment
+                                    ? "구간 반복 중지"
+                                    : "구간 반복 시작"
+                            }
                         >
                             <ArrowPathIcon
                                 className={`h-4 w-4 ${
@@ -278,7 +333,7 @@ const TranscriptViewer = ({
                     </p>
                 );
             })}
-            
+
             {showTooltip && (
                 <div
                     ref={tooltipRef}
@@ -335,7 +390,13 @@ const TranscriptViewer = ({
                 <Alert
                     title={alertMessage.title}
                     subtitle={alertMessage.subtitle}
-                    buttons={[{ text: "확인", onClick: () => setShowAlert(false), isPrimary: true }]}
+                    buttons={[
+                        {
+                            text: "확인",
+                            onClick: () => setShowAlert(false),
+                            isPrimary: true,
+                        },
+                    ]}
                     onClose={() => setShowAlert(false)}
                 />
             )}
