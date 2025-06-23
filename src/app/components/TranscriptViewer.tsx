@@ -1,5 +1,4 @@
 // src/app/components/TranscriptViewer.tsx
-// src/app/components/TranscriptViewer.tsx
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
@@ -37,7 +36,7 @@ const extractVideoId = (url: string): string | null => {
     return match ? match[1] : null;
 };
 
-// --- 컴포넌트 본문 (수정됨) ---
+// --- 컴포넌트 본문 (최종 수정) ---
 const TranscriptViewer = ({
     parsedTranscript,
     activeSegmentIndex,
@@ -59,7 +58,6 @@ const TranscriptViewer = ({
 
     const [selectedForActionIndex, setSelectedForActionIndex] = useState<number | null>(null);
 
-    // (나머지 상태 및 핸들러 함수는 변경 없음)
     const [showTooltip, setShowTooltip] = useState(false);
     const [tooltipText, setTooltipText] = useState("");
     const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
@@ -69,27 +67,83 @@ const TranscriptViewer = ({
     const [showAlert, setShowAlert] = useState(false);
     const [alertMessage, setAlertMessage] = useState({ title: "", subtitle: "" });
 
-    // *** 수정 1: 스크롤 위치를 정밀하게 제어하는 로직으로 변경 ***
+    // 스크롤 제어 로직 (변경 없음)
     useEffect(() => {
         if (activeSegmentIndex === -1) return;
-
         const container = transcriptContainerRef.current;
         const activeElement = segmentRefs.current[activeSegmentIndex];
-
         if (container && activeElement) {
-            // 목표: 활성 요소의 상단이 컨테이너의 상단에서 30% 지점에 위치하도록 스크롤
             const containerHeight = container.clientHeight;
             const elementOffsetTop = activeElement.offsetTop;
-
-            // 최종 스크롤 위치 계산
             const newScrollTop = elementOffsetTop - (containerHeight * 0.3);
-
             container.scrollTo({
                 top: newScrollTop,
                 behavior: "smooth",
             });
         }
     }, [activeSegmentIndex]);
+
+    // [핵심 수정] 툴팁을 표시/숨기는 공통 함수
+    const showOrHideTooltip = () => {
+        const selection = window.getSelection();
+        if (!selection) return;
+
+        const selectedText = selection.toString().trim();
+
+        if (selectedText && selectedText.length > 0) {
+            // 선택 영역이 현재 컴포넌트 내에 있는지 확인 (가장 안정적인 방법)
+            const containerNode = transcriptContainerRef.current;
+            if (!containerNode || !selection.anchorNode || !containerNode.contains(selection.anchorNode)) {
+                 // 선택이 이 컴포넌트 밖에서 시작되었으면 무시
+                return;
+            }
+
+            const range = selection.getRangeAt(0);
+            const rect = range.getBoundingClientRect();
+            const containerRect = containerNode.getBoundingClientRect();
+
+            const xPos = rect.left - containerRect.left + rect.width / 2;
+            const yPos = rect.top - containerRect.top;
+
+            setInterpretationResult(null);
+            setTooltipText(selectedText);
+
+            const parentElement = selection.anchorNode?.parentElement;
+            const fullSentence = parentElement?.textContent?.replace(/\[\d{2}:\d{2}\]\s*/g, "").trim() || "";
+            setSelectedFullSentenceContext(fullSentence || selectedText);
+            
+            setTooltipPosition({ x: xPos, y: yPos });
+            setShowTooltip(true);
+        } else {
+            if (!isInterpreting) {
+                setShowTooltip(false);
+            }
+        }
+    };
+    
+    // [핵심 수정] 데스크톱과 모바일을 위한 이벤트 핸들러 분리 및 결합
+    useEffect(() => {
+        const handleSelection = () => {
+            // setTimeout으로 감싸 모바일에서의 타이밍 이슈 해결
+            setTimeout(showOrHideTooltip, 0);
+        };
+        
+        const container = transcriptContainerRef.current;
+        if (container) {
+            // 데스크톱용 이벤트
+            container.addEventListener('mouseup', handleSelection);
+            // 모바일용 이벤트
+            document.addEventListener('selectionchange', handleSelection);
+        }
+
+        return () => {
+            if (container) {
+                container.removeEventListener('mouseup', handleSelection);
+            }
+            document.removeEventListener('selectionchange', handleSelection);
+        };
+    }, [isInterpreting]); // isInterpreting이 변경될 때 리스너를 다시 설정하여 최신 상태 참조
+
 
     const handleLineClick = (index: number) => {
         if (selectedForActionIndex === index) {
@@ -99,18 +153,68 @@ const TranscriptViewer = ({
         }
     };
     
-    // (다른 핸들러 함수들은 변경 없음)
-    const handleSaveInterpretation = async () => { /* ... */ };
-    const handleAIInterpretation = async () => { /* ... */ };
-    const handleTextSelection = () => { /* ... */ };
-    useEffect(() => { /* ... */ }, [tooltipRef]);
+    const handleSaveInterpretation = async () => {
+        if (!user || !tooltipText || !interpretationResult || !youtubeUrl) {
+            setAlertMessage({ title: "저장 오류", subtitle: "저장할 데이터가 부족합니다." });
+            setShowAlert(true);
+            return;
+        }
 
+        const videoId = extractVideoId(youtubeUrl);
+        if (!videoId) {
+            setAlertMessage({ title: "저장 오류", subtitle: "유효한 YouTube 영상 ID를 찾을 수 없습니다." });
+            setShowAlert(true);
+            return;
+        }
+
+        const newExpressionData = {
+            originalText: tooltipText,
+            interpretation: interpretationResult,
+            youtubeUrl: youtubeUrl,
+            videoId: videoId,
+            timestamp: new Date(),
+        };
+
+        try {
+            await onSave(newExpressionData);
+            setShowTooltip(false);
+        } catch (error) {
+            console.error("해석 결과 저장 중 오류 발생:", error);
+            setAlertMessage({ title: "저장 오류", subtitle: "해석 결과 저장에 실패했습니다." });
+            setShowAlert(true);
+        }
+    };
+
+    const handleAIInterpretation = async () => {
+        if (!tooltipText) return;
+        setIsInterpreting(true);
+        setInterpretationResult(null);
+
+        try {
+            const response = await fetch("/api/interpret", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    selectedText: tooltipText,
+                    summary: videoSummary,
+                    fullSentence: selectedFullSentenceContext,
+                }),
+            });
+            if (!response.ok) throw new Error("Failed to interpret text");
+            const data = await response.json();
+            setInterpretationResult(data.interpretation);
+        } catch (error) {
+            setInterpretationResult("해석에 실패했습니다.");
+        } finally {
+            setIsInterpreting(false);
+        }
+    };
+    
     return (
         <div
             ref={transcriptContainerRef}
-            className="text-gray-700 relative"
-            onMouseUp={handleTextSelection}
-            onTouchEnd={handleTextSelection}
+            className="text-gray-700 relative select-text" // `select-text` 추가로 텍스트 선택 보장
+            onContextMenu={(e) => e.preventDefault()}
         >
             {parsedTranscript.map((segment, index) => {
                 const isCurrent = index === activeSegmentIndex;
@@ -126,7 +230,7 @@ const TranscriptViewer = ({
                         key={index}
                         ref={(el) => { if (segmentRefs.current) segmentRefs.current[index] = el; }}
                         onClick={() => handleLineClick(index)}
-                        className={`relative group flex items-center min-h-[44px] cursor-pointer transition-all duration-300 pl-4 pr-4
+                        className={`relative group flex items-center min-h-[44px] cursor-pointer transition-all duration-300 pl-2 pr-2 p-2
                             ${isCurrent ? "transform scale-103 bg-blue-50" : "bg-white"}
                             ${isLoopingThisSegment ? "ring-2 ring-purple-300" : ""}
                         `}
@@ -144,7 +248,6 @@ const TranscriptViewer = ({
                             </span>
                         </span>
 
-                        {/* *** 수정 2: 버튼의 className 로직을 명확하고 간결하게 정리 *** */}
                         <button
                             onClick={(e) => {
                                 e.stopPropagation(); 
@@ -173,7 +276,7 @@ const TranscriptViewer = ({
                     </p>
                 );
             })}
-            {/* 이하 툴팁 및 Alert 컴포넌트는 변경 없음 */}
+            
             {showTooltip && (
                 <div
                     ref={tooltipRef}
