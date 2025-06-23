@@ -57,7 +57,7 @@ const TranscriptViewer = ({
     const segmentRefs = useRef<(HTMLParagraphElement | null)[]>([]);
 
     const [selectedForActionIndex, setSelectedForActionIndex] = useState<number | null>(null);
-
+    const isInitialRender = useRef(true);
     const [showTooltip, setShowTooltip] = useState(false);
     const [tooltipText, setTooltipText] = useState("");
     const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
@@ -69,16 +69,18 @@ const TranscriptViewer = ({
 
     // 스크롤 제어 로직 (변경 없음)
     useEffect(() => {
-        if (activeSegmentIndex === -1) return;
-        const container = transcriptContainerRef.current;
+        if (activeSegmentIndex < 1) return;
+
+        if (isInitialRender.current && activeSegmentIndex === 0) {
+            isInitialRender.current = false; // 플래그를 false로 바꿔 다음부터는 정상 작동하도록 함
+            return;
+        }
+     
         const activeElement = segmentRefs.current[activeSegmentIndex];
-        if (container && activeElement) {
-            const containerHeight = container.clientHeight;
-            const elementOffsetTop = activeElement.offsetTop;
-            const newScrollTop = elementOffsetTop - (containerHeight * 0.3);
-            container.scrollTo({
-                top: newScrollTop,
+        if (activeElement) {
+            activeElement.scrollIntoView({
                 behavior: "smooth",
+                block: "center",
             });
         }
     }, [activeSegmentIndex]);

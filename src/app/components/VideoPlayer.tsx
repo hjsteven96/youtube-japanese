@@ -50,7 +50,7 @@ const VideoPlayer = ({
             </div>
 
             {title && (
-                <div className="mt-4 mb-6">
+                <div className="mt-4 mb-2 m-3">
                     <h2 className="text-base md:text-xl lg:text-2xl font-bold text-gray-800">
                         {title}
                     </h2>
@@ -58,7 +58,7 @@ const VideoPlayer = ({
             )}
 
             {/* 영상 요약 ─ 모바일 접힘, 데스크톱 항상 펼침 */}
-            <div className="mt-6 bg-gray-50 md:p-6 p-4 rounded-xl">
+            <div className="mt-2 bg-gray-50 md:p-6 p-4 rounded-xl">
                 {/* 모바일 헤더 (토글) */}
                 <button
                     onClick={() => setOpen(!open)}

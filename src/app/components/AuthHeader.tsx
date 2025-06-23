@@ -15,6 +15,8 @@ import Link from "next/link"; // 로고 클릭 시 홈으로 이동
 export default function AuthHeader() {
     const [user, setUser] = useState<User | null>(null);
     const [loadingAuth, setLoadingAuth] = useState(true); // 인증 초기화 로딩 상태
+    const [visible, setVisible] = useState(true);
+    const [lastScrollY, setLastScrollY] = useState(0);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -35,6 +37,26 @@ export default function AuthHeader() {
         }
     };
 
+     // --- 스크롤 이벤트 핸들러 추가 ---
+    useEffect(() => {
+        const handleScroll = () => {
+            const currentScrollY = window.scrollY;
+
+            // 스크롤을 아래로 내릴 때, 그리고 스크롤이 헤더 높이보다 많이 내려갔을 때
+            if (currentScrollY > lastScrollY && currentScrollY > 100) {
+                setVisible(false);
+            } else { // 스크롤을 위로 올릴 때
+                setVisible(true);
+            }
+            // 마지막 스크롤 위치 업데이트
+            setLastScrollY(currentScrollY);
+        };
+
+        window.addEventListener("scroll", handleScroll);
+        return () => window.removeEventListener("scroll", handleScroll);
+    }, [lastScrollY]);
+
+
     const handleGoogleSignOut = async () => {
         try {
             await signOut(auth);
@@ -46,8 +68,11 @@ export default function AuthHeader() {
     };
 
     return (
-        <header className="w-full bg-white bg-opacity-90 backdrop-blur-md shadow-sm fixed top-0 left-0 right-0 z-40 p-4 border-b border-gray-100">
-            <nav className="max-w-7xl mx-auto flex justify-between items-center">
+        <header
+            className={`w-full bg-white bg-opacity-90 backdrop-blur-md shadow-sm fixed top-0 left-0 right-0 z-40 p-4 border-b border-gray-100 transform transition-transform duration-300 ease-in-out ${
+                visible ? "translate-y-0" : "-translate-y-full"
+            }`}
+        >     <nav className="max-w-7xl mx-auto flex justify-between items-center">
                 <Link href="/" className="flex items-center space-x-2">
                     <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                         Ling:to

@@ -37,7 +37,7 @@ export async function generateMetadata({
         "YouTube 영상을 AI로 분석하여 실전 영어를 학습하세요. 자막, 핵심 표현, AI 대화 연습까지!";
 
     const title = youtubeTitle
-        ? `유튜브 영상 "${youtubeTitle}"으로 영어 공부하세요 | lingto`
+        ? `Lingto | 유튜브로 영어 공부 하세요! - "${youtubeTitle}" `
         : defaultTitle;
     const description = youtubeTitle
         ? `'${youtubeTitle}' 영상을 AI로 분석하여 영어를 마스터하세요.`

@@ -476,11 +476,11 @@ function AnalysisPageComponent() {
 
     // JSX 렌더링 부분은 변경사항 없습니다.
     return (
-        <div className="min-h-screen flex flex-col items-center py-10 bg-gradient-to-br from-blue-50 to-purple-50">
+        <div className="min-h-screen flex flex-col items-center py-4 bg-gradient-to-br from-blue-50 to-purple-50">
             <div className="w-full max-w-6xl mx-auto px-4">
                 <button
                     onClick={() => router.push("/")}
-                    className="mb-8 text-blue-600 hover:text-blue-800 font-semibold"
+                    className="mb-2 text-blue-600 hover:text-blue-800 font-semibold"
                 >
                     ← 다른 영상 공부하기
                 </button>
@@ -495,7 +495,7 @@ function AnalysisPageComponent() {
             )}
 
             {analysisData && !loading && authInitialized && !error && (
-                <div className="w-full max-w-6xl bg-white p-4 md:p-8 rounded-2xl shadow-xl flex flex-col lg:flex-row lg:space-x-8 mt-4 mx-auto">
+                <div className="w-full max-w-6xl bg-white p-3 md:p-18 rounded-2xl shadow-xl flex flex-col lg:flex-row lg:space-x-8 mt-4 mx-auto">
                     <VideoPlayer
                         url={`https://www.youtube.com/watch?v=${videoId}`}
                         title={analysisData.youtubeTitle || videoTitle}
