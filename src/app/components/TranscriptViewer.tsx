@@ -219,15 +219,15 @@ const TranscriptViewer = ({
                 return (
                     <p
                         key={index}
-                        className={`py-2 px-4 transition-all duration-300 flex justify-between items-center group
+                        className={`py-2 px-4 transition-all duration-300 flex justify-between items-center relative group
                             ${
                                 isCurrent
-                                    ? "transform scale-103"
+                                    ? "transform scale-104"
                                     : "bg-white"
                             }
                             ${
                                 isLoopingThisSegment
-                                    ? "border-2 border-purple-500 ring-2 ring-purple-300"
+                                    ? "border-2 border-purple-500"
                                     : ""
                             }
                         `}
@@ -261,7 +261,7 @@ const TranscriptViewer = ({
                             onClick={() =>
                                 onLoopToggle(segment.time, segmentEndTime)
                             }
-                            className={`ml-4 p-2 rounded-full transition-all duration-300
+                            className={`absolute right-4 top-1/2 transform -translate-y-1/2 p-2 rounded-full transition-all duration-300
                                 ${
                                     isLoopingThisSegment
                                         ? "bg-purple-200 text-white"
