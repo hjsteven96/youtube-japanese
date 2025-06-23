@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 
 import { Inter, Noto_Sans_KR } from "next/font/google";
 import "./globals.css";
-import AuthHeader from "./components/AuthHeader"; // ★ 추가: AuthHeader 임포트
 
 // 영어와 한국어에 최적화된 폰트 설정
 const inter = Inter({
@@ -26,9 +25,9 @@ export const metadata: Metadata = {
             `https://${process.env.VERCEL_URL}` ||
             "http://localhost:3000"
     ),
-    title: "Lingto - YouTube로 배우는 영어, 링토",
+    title: "Lincue - 링크만 넣으면 영어로 큐! YouTube로 배우는 영어",
     description:
-        "YouTube 영상으로 실전 영어를 학습하세요. 자막, 핵심 표현, AI 대화 연습까지!",
+        "YouTube 영상을 AI로 분석하여 실전 영어를 학습하세요. 자막, 핵심 표현, AI 대화 연습까지!",
     keywords: [
         "영어학습",
         "YouTube 영어",
@@ -123,12 +122,10 @@ export default function RootLayout({
                 </a>
 
                 {/* ★ 추가: AuthHeader 컴포넌트 포함 */}
-                <AuthHeader />
+
                 {/* header 높이만큼 콘텐츠 시작 위치 조정 (fixed header 때문에) */}
-                <div className="pt-[76px]">
-                    {/* Header의 예상 높이 64px + 여백 12px */}
-                    <main id="main-content">{children}</main>
-                </div>
+
+                <main id="main-content">{children}</main>
             </body>
         </html>
     );

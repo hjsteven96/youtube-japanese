@@ -13,6 +13,7 @@ interface VideoPlayerProps {
     onPause: () => void;
     onEnded: () => void;
     onProgress: (state: { playedSeconds: number }) => void;
+    playbackRate: number;
 }
 
 const VideoPlayer = ({
@@ -21,6 +22,7 @@ const VideoPlayer = ({
     summary,
     playerRef,
     isPlaying,
+    playbackRate,
     onPlay,
     onPause,
     onEnded,
@@ -38,6 +40,7 @@ const VideoPlayer = ({
                         url={url}
                         controls
                         playing={isPlaying}
+                        playbackRate={playbackRate}
                         width="100%"
                         height="100%"
                         className="absolute inset-0"

@@ -36,7 +36,7 @@ const extractVideoId = (url: string): string | null => {
     return match ? match[1] : null;
 };
 
-// --- 컴포넌트 본문 (최종 수정) ---
+// --- 컴포넌트 본문 (최종 수정 완료) ---
 const TranscriptViewer = ({
     parsedTranscript,
     activeSegmentIndex,
@@ -55,6 +55,9 @@ const TranscriptViewer = ({
     const transcriptContainerRef = useRef<HTMLDivElement>(null);
     const tooltipRef = useRef<HTMLDivElement>(null);
     const segmentRefs = useRef<(HTMLParagraphElement | null)[]>([]);
+
+    // 모바일에서 버튼 자동 숨김을 위한 타이머 참조
+    const hideButtonTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     const [selectedForActionIndex, setSelectedForActionIndex] = useState<
         number | null
@@ -80,7 +83,7 @@ const TranscriptViewer = ({
         if (activeSegmentIndex < 1) return;
 
         if (isInitialRender.current && activeSegmentIndex === 0) {
-            isInitialRender.current = false; // 플래그를 false로 바꿔 다음부터는 정상 작동하도록 함
+            isInitialRender.current = false;
             return;
         }
 
@@ -93,63 +96,66 @@ const TranscriptViewer = ({
         }
     }, [activeSegmentIndex]);
 
-    // [핵심 수정] 툴팁을 표시/숨기는 공통 함수
-    const showOrHideTooltip = () => {
-        const selection = window.getSelection();
-        if (!selection) return;
-
-        const selectedText = selection.toString().trim();
-
-        if (selectedText && selectedText.length > 0) {
-            // 선택 영역이 현재 컴포넌트 내에 있는지 확인 (가장 안정적인 방법)
-            const containerNode = transcriptContainerRef.current;
-            if (
-                !containerNode ||
-                !selection.anchorNode ||
-                !containerNode.contains(selection.anchorNode)
-            ) {
-                // 선택이 이 컴포넌트 밖에서 시작되었으면 무시
-                return;
-            }
-
-            const range = selection.getRangeAt(0);
-            const rect = range.getBoundingClientRect();
-            const containerRect = containerNode.getBoundingClientRect();
-
-            const xPos = rect.left - containerRect.left + rect.width / 2;
-            const yPos = rect.top - containerRect.top;
-
-            setInterpretationResult(null);
-            setTooltipText(selectedText);
-
-            const parentElement = selection.anchorNode?.parentElement;
-            const fullSentence =
-                parentElement?.textContent
-                    ?.replace(/\[\d{2}:\d{2}\]\s*/g, "")
-                    .trim() || "";
-            setSelectedFullSentenceContext(fullSentence || selectedText);
-
-            setTooltipPosition({ x: xPos, y: yPos });
-            setShowTooltip(true);
-        } else {
-            if (!isInterpreting) {
-                setShowTooltip(false);
-            }
-        }
-    };
-
-    // [핵심 수정] 데스크톱과 모바일을 위한 이벤트 핸들러 분리 및 결합
+    // 컴포넌트 언마운트 시 타이머 정리
     useEffect(() => {
+        return () => {
+            if (hideButtonTimerRef.current) {
+                clearTimeout(hideButtonTimerRef.current);
+            }
+        };
+    }, []);
+
+    // 툴팁 관련 로직
+    useEffect(() => {
+        const showOrHideTooltip = () => {
+            const selection = window.getSelection();
+            if (!selection) return;
+
+            const selectedText = selection.toString().trim();
+
+            if (selectedText && selectedText.length > 0) {
+                const containerNode = transcriptContainerRef.current;
+                if (
+                    !containerNode ||
+                    !selection.anchorNode ||
+                    !containerNode.contains(selection.anchorNode)
+                ) {
+                    return;
+                }
+
+                const range = selection.getRangeAt(0);
+                const rect = range.getBoundingClientRect();
+                const containerRect = containerNode.getBoundingClientRect();
+
+                const xPos = rect.left - containerRect.left + rect.width / 2;
+                const yPos = rect.top - containerRect.top;
+
+                setInterpretationResult(null);
+                setTooltipText(selectedText);
+
+                const parentElement = selection.anchorNode?.parentElement;
+                const fullSentence =
+                    parentElement?.textContent
+                        ?.replace(/\[\d{2}:\d{2}\]\s*/g, "")
+                        .trim() || "";
+                setSelectedFullSentenceContext(fullSentence || selectedText);
+
+                setTooltipPosition({ x: xPos, y: yPos });
+                setShowTooltip(true);
+            } else {
+                if (!isInterpreting) {
+                    setShowTooltip(false);
+                }
+            }
+        };
+
         const handleSelection = () => {
-            // setTimeout으로 감싸 모바일에서의 타이밍 이슈 해결
             setTimeout(showOrHideTooltip, 0);
         };
 
         const container = transcriptContainerRef.current;
         if (container) {
-            // 데스크톱용 이벤트
             container.addEventListener("mouseup", handleSelection);
-            // 모바일용 이벤트
             document.addEventListener("selectionchange", handleSelection);
         }
 
@@ -159,16 +165,25 @@ const TranscriptViewer = ({
             }
             document.removeEventListener("selectionchange", handleSelection);
         };
-    }, [isInterpreting]); // isInterpreting이 변경될 때 리스너를 다시 설정하여 최신 상태 참조
+    }, [isInterpreting]);
 
+    // 모바일 환경을 위한 타이머 로직이 포함된 라인 클릭 핸들러
     const handleLineClick = (index: number) => {
+        if (hideButtonTimerRef.current) {
+            clearTimeout(hideButtonTimerRef.current);
+        }
+
         if (selectedForActionIndex === index) {
             setSelectedForActionIndex(null);
         } else {
             setSelectedForActionIndex(index);
+            hideButtonTimerRef.current = setTimeout(() => {
+                setSelectedForActionIndex(null);
+            }, 3000);
         }
     };
 
+    // 저장 및 해석 관련 함수
     const handleSaveInterpretation = async () => {
         if (!user || !tooltipText || !interpretationResult || !youtubeUrl) {
             setAlertMessage({
@@ -199,6 +214,7 @@ const TranscriptViewer = ({
 
         try {
             await onSave(newExpressionData);
+            onShowToast("표현이 성공적으로 저장되었습니다.");
             setShowTooltip(false);
         } catch (error) {
             console.error("해석 결과 저장 중 오류 발생:", error);
@@ -238,7 +254,7 @@ const TranscriptViewer = ({
     return (
         <div
             ref={transcriptContainerRef}
-            className="text-gray-700 relative select-text" // `select-text` 추가로 텍스트 선택 보장
+            className="text-gray-700 relative select-text"
             onContextMenu={(e) => e.preventDefault()}
         >
             {parsedTranscript.map((segment, index) => {
@@ -261,6 +277,7 @@ const TranscriptViewer = ({
                             if (segmentRefs.current)
                                 segmentRefs.current[index] = el;
                         }}
+                        // 라인 전체 클릭 시 핸들러 호출
                         onClick={() => handleLineClick(index)}
                         className={`relative group flex items-center min-h-[44px] cursor-pointer transition-all duration-300 pl-2 pr-2 p-2
                             ${
@@ -275,10 +292,15 @@ const TranscriptViewer = ({
                             }
                         `}
                     >
-                        <span onClick={(e) => e.stopPropagation()}>
+                        {/* 자식 span의 onClick을 제거하여 이벤트가 부모 p 태그로 전파되게 함 */}
+                        <span>
                             <span
                                 className="text-blue-500 hover:text-purple-600 transition-colors duration-300"
-                                onClick={() => onSeek(segment.time)}
+                                // 타임스탬프 클릭은 seek만 하고, 이벤트 전파를 막아 handleLineClick이 호출되지 않게 함
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onSeek(segment.time);
+                                }}
                             >
                                 [
                                 {String(Math.floor(segment.time / 60)).padStart(
@@ -304,18 +326,23 @@ const TranscriptViewer = ({
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();
+                                // 버튼 클릭 시 자동 숨김 타이머가 있다면 취소
+                                if (hideButtonTimerRef.current) {
+                                    clearTimeout(hideButtonTimerRef.current);
+                                }
                                 onLoopToggle(segment.time, segmentEndTime);
                             }}
-                            className={`absolute right-3 top-1/2 transform -translate-y-1/2 p-2 rounded-full transition-all duration-300
+                            className={`
+                                absolute right-3 top-1/2 transform -translate-y-1/2 p-2 rounded-full transition-all duration-300
                                 ${
                                     isLoopingThisSegment
-                                        ? "bg-purple-500 text-white"
-                                        : "bg-blue-50 text-blue-600 hover:bg-blue-100"
+                                        ? "bg-blue-100 bg-opacity-50 text-blue-500"
+                                        : "bg-gray-200 bg-opacity-50 text-gray-500 hover:bg-blue-200"
                                 }
                                 ${
                                     isButtonVisible
                                         ? "opacity-100 pointer-events-auto"
-                                        : "opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto"
+                                        : "opacity-0 pointer-events-none md:group-hover:opacity-100 md:group-hover:pointer-events-auto"
                                 }
                             `}
                             title={

@@ -12,6 +12,7 @@ import { PLANS, UserProfile } from "@/lib/plans";
 import RecentVideos from "./components/RecentVideos";
 import TrendingVideos from "./components/TrendingVideos";
 import Alert from "./components/Alert";
+import AuthHeader from "./components/AuthHeader"; // Import AuthHeader
 
 interface VideoInfo {
     url: string;
@@ -217,151 +218,155 @@ export default function Home() {
     const buttonState = getButtonState();
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex flex-col items-center justify-center py-10 px-4">
-            <div className="w-full max-w-2xl">
-                <header className="text-center mb-8">
-                    <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3 flex items-center justify-center">
-                        Ling:to
-                        <span className="ml-2 text-base font-normal text-gray-400 opacity-80">
-                            Beta
-                        </span>
-                    </h1>
-                    <p className="text-gray-600 text-lg">
-                        YouTube로 배우는 영어 🎓
-                    </p>
-                </header>
-
-                <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-2xl transition-all duration-300">
-                    <div className="mb-6">
-                        <label
-                            htmlFor="youtubeUrl"
-                            className="block text-gray-700 text-sm font-semibold mb-3 flex items-center"
-                        >
-                            <span className="mr-2">🎬</span> YouTube 링크 입력
-                        </label>
-                        <input
-                            type="url"
-                            id="youtubeUrl"
-                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none transition-all duration-300 text-gray-700"
-                            placeholder="https://www.youtube.com/watch?v=..."
-                            value={urlInput}
-                            onChange={(e) => setUrlInput(e.target.value)}
-                        />
-                    </div>
-                </div>
-
-                <div style={{ display: "none" }}>
-                    {extractVideoId(urlInput) && (
-                        <ReactPlayer
-                            url={urlInput}
-                            onReady={handlePlayerReady}
-                        />
-                    )}
-                </div>
-
-                {isLoading && (
-                    <div className="text-center py-4">
-                        <p className="text-gray-500">
-                            영상 정보를 불러오는 중...
+        <>
+            <AuthHeader />
+            <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex flex-col items-center justify-center py-20 px-4 pt-20">
+                {" "}
+                {/* Added pt-20 for header spacing */}
+                <div className="w-full max-w-2xl pt-10">
+                    <header className="text-center mb-8">
+                        <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3 flex items-center justify-center">
+                            Lin:cue
+                            <span className="ml-2 text-base font-normal text-gray-400 opacity-80">
+                                Beta
+                            </span>
+                        </h1>
+                        <p className="text-gray-600 text-lg">
+                            YouTube 링크로 배우는 영어 🎓
                         </p>
-                    </div>
-                )}
+                    </header>
 
-                {error && (
-                    <p className="text-red-500 text-sm mt-4 text-center">
-                        ⚠️ {error}
-                    </p>
-                )}
-
-                {videoInfo && (
-                    <div className="mt-8 animate-slide-up">
-                        <div className="relative w-full pt-[56.25%] rounded-xl overflow-hidden shadow-lg mb-4">
-                            <ReactPlayer
-                                url={videoInfo.url}
-                                controls={true}
-                                width="100%"
-                                height="100%"
-                                className="absolute inset-0"
+                    <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-2xl transition-all duration-300">
+                        <div className="mb-6">
+                            <label
+                                htmlFor="youtubeUrl"
+                                className="block text-gray-700 text-sm font-semibold mb-3 flex items-center"
+                            >
+                                <span className="mr-2">🎬</span> YouTube 링크
+                                입력
+                            </label>
+                            <input
+                                type="url"
+                                id="youtubeUrl"
+                                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none transition-all duration-300 text-gray-700"
+                                placeholder="https://www.youtube.com/watch?v=..."
+                                value={urlInput}
+                                onChange={(e) => setUrlInput(e.target.value)}
                             />
                         </div>
-                        <h2 className="text-xl font-bold text-gray-800 mb-2">
-                            {videoInfo.title}
-                        </h2>
-                        <p className="text-gray-600 mb-4">
-                            영상 길이: {Math.floor(videoInfo.duration / 60)}분{" "}
-                            {Math.floor(videoInfo.duration % 60)}초
-                        </p>
-
-                        <Link
-                            href={
-                                videoInfo
-                                    ? `/analysis/${videoInfo.videoId}`
-                                    : "#"
-                            }
-                            onClick={handleAnalysisClick}
-                            className={`block text-center w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 ${
-                                buttonState.disabled
-                                    ? "opacity-50 cursor-not-allowed"
-                                    : ""
-                            }`}
-                            aria-disabled={buttonState.disabled}
-                        >
-                            {buttonState.text}
-                        </Link>
                     </div>
+
+                    <div style={{ display: "none" }}>
+                        {extractVideoId(urlInput) && (
+                            <ReactPlayer
+                                url={urlInput}
+                                onReady={handlePlayerReady}
+                            />
+                        )}
+                    </div>
+
+                    {isLoading && (
+                        <div className="text-center py-4">
+                            <p className="text-gray-500">
+                                영상 정보를 불러오는 중...
+                            </p>
+                        </div>
+                    )}
+
+                    {error && (
+                        <p className="text-red-500 text-sm mt-4 text-center">
+                            ⚠️ {error}
+                        </p>
+                    )}
+
+                    {videoInfo && (
+                        <div className="mt-8 animate-slide-up">
+                            <div className="relative w-full pt-[56.25%] rounded-xl overflow-hidden shadow-lg mb-4">
+                                <ReactPlayer
+                                    url={videoInfo.url}
+                                    controls={true}
+                                    width="100%"
+                                    height="100%"
+                                    className="absolute inset-0"
+                                />
+                            </div>
+                            <h2 className="text-xl font-bold text-gray-800 mb-2">
+                                {videoInfo.title}
+                            </h2>
+                            <p className="text-gray-600 mb-4">
+                                영상 길이: {Math.floor(videoInfo.duration / 60)}
+                                분 {Math.floor(videoInfo.duration % 60)}초
+                            </p>
+
+                            <Link
+                                href={
+                                    videoInfo
+                                        ? `/analysis/${videoInfo.videoId}`
+                                        : "#"
+                                }
+                                onClick={handleAnalysisClick}
+                                className={`block text-center w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 ${
+                                    buttonState.disabled
+                                        ? "opacity-50 cursor-not-allowed"
+                                        : ""
+                                }`}
+                                aria-disabled={buttonState.disabled}
+                            >
+                                {buttonState.text}
+                            </Link>
+                        </div>
+                    )}
+                </div>
+                <div className="w-full max-w-3xl mt-8 px-4 space-y-12">
+                    <RecentVideos />
+                    <TrendingVideos />
+                </div>
+                {/* --- ⭐️ 통합된 Alert 컴포넌트 --- */}
+                {isAlertVisible && (
+                    <Alert
+                        title={alertConfig.title}
+                        subtitle={alertConfig.subtitle}
+                        buttons={alertConfig.buttons}
+                        onClose={() => setIsAlertVisible(false)}
+                    />
                 )}
-            </div>
-
-            <div className="w-full max-w-3xl mt-8 px-4 space-y-8">
-                <RecentVideos />
-                <TrendingVideos />
-            </div>
-
-            {isAlertVisible && (
-                <Alert
-                    title={alertConfig.title}
-                    subtitle={alertConfig.subtitle}
-                    buttons={alertConfig.buttons}
-                    onClose={() => setIsAlertVisible(false)}
-                />
-            )}
-
-            <div className="fixed bottom-6 right-6 z-50">
-                <button
-                    onClick={() =>
-                        window.open(
-                            "https://open.kakao.com/o/sl0HG7Ch",
-                            "_blank"
-                        )
-                    }
-                    className="relative bg-gradient-to-r from-white to-blue-100
+                <div className="fixed bottom-6 right-6 z-50">
+                    <button
+                        onClick={() =>
+                            window.open(
+                                "https://open.kakao.com/o/sl0HG7Ch",
+                                "_blank"
+                            )
+                        }
+                        className="relative bg-gradient-to-r from-blue-300/80 to-white/30
                backdrop-blur-md border border-white/30
                text-gray-700 font-semibold py-3 px-6 rounded-full
                shadow-md transition-all duration-300
                hover:from-blue-300/60 hover:to-blue-100/40 hover:scale-105
                flex items-center space-x-2"
-                >
-                    {/* 모바일: ‘문의하기’, 데스크탑: 긴 문구 */}
-                    <span className="md:hidden">문의하기</span>
-                    <span className="hidden md:inline">
-                        문의나 요청사항이 있다면?
-                    </span>
-
-                    {/* 모바일에서 더 작은 아이콘, md 이상에서 기본 크기 */}
-                    <svg
-                        className="w-4 h-4 md:w-6 md:h-6"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                        xmlns="http://www.w3.org/2000/svg"
                     >
-                        <path
-                            fillRule="evenodd"
-                            d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.336-3.111A8.933 8.933 0 012 10c0-3.866 3.582-7 8-7s8 3.134 8 7z"
-                            clipRule="evenodd"
-                        />
-                    </svg>
-                </button>
+                        {/* 모바일: ‘문의하기’, 데스크탑: 긴 문구 */}
+                        <span className="md:hidden">문의하기</span>
+                        <span className="hidden md:inline">
+                            문의나 요청사항이 있다면?
+                        </span>
+
+                        {/* 모바일에서 더 작은 아이콘, md 이상에서 기본 크기 */}
+                        <svg
+                            className="w-4 h-4 md:w-6 md:h-6"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                            xmlns="http://www.w3.org/2000/svg"
+                        >
+                            <path
+                                fillRule="evenodd"
+                                d="M18 10c0 3.866-3.582 7-8 7a8.841 8.841 0 01-4.083-.98L2 17l1.336-3.111A8.933 8.933 0 012 10c0-3.866 3.582-7 8-7s8 3.134 8 7z"
+                                clipRule="evenodd"
+                            />
+                        </svg>
+                    </button>
+                </div>
             </div>
-        </div>
+        </>
     );
 }
