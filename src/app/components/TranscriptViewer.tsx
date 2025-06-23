@@ -219,7 +219,7 @@ const TranscriptViewer = ({
                 return (
                     <p
                         key={index}
-                        className={`py-2 px-4 transition-all duration-300 flex justify-between items-center relative group
+                        className={`py-2 px-4 transition-all duration-300 flex justify-between items-center relativegroup
                             ${
                                 isCurrent
                                     ? "transform scale-104"
@@ -251,7 +251,7 @@ const TranscriptViewer = ({
                             </span>{" "}
                             <span
                                 className={`${
-                                    isCurrent ? "font-medium" : ""
+                                    isCurrent ? "font-medium" : "text-gray-600"
                                 } whitespace-pre-wrap`}
                             >
                                 {segment.text}
