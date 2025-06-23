@@ -226,13 +226,13 @@ export default function Home() {
                 <div className="w-full max-w-2xl pt-10">
                     <header className="text-center mb-8">
                         <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3 flex items-center justify-center">
-                            Lin:cue
+                            Ling:to
                             <span className="ml-2 text-base font-normal text-gray-400 opacity-80">
                                 Beta
                             </span>
                         </h1>
                         <p className="text-gray-600 text-lg">
-                            YouTube 링크로 배우는 영어 🎓
+                            YouTube로 시작하는 영어 🎓
                         </p>
                     </header>
 
