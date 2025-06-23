@@ -204,7 +204,7 @@ const TranscriptViewer = ({
     return (
         <div
             ref={transcriptContainerRef}
-            className="text-gray-700 space-y-2 relative"
+            className="text-gray-700 relative"
             onMouseUp={handleTextSelection} // 마우스 놓을 때 텍스트 선택 감지
         >
             {parsedTranscript.map((segment, index) => {
@@ -219,10 +219,10 @@ const TranscriptViewer = ({
                 return (
                     <p
                         key={index}
-                        className={`py-1 px-4 rounded-lg transition-all duration-300 flex justify-between items-center group
+                        className={`py-2 px-4 transition-all duration-300 flex justify-between items-center group
                             ${
                                 isCurrent
-                                    ? "bg-gradient-to-r from-blue-100/10 to-purple-100/10 shadow-md transform scale-104"
+                                    ? "transform scale-103"
                                     : "bg-white"
                             }
                             ${
@@ -234,7 +234,7 @@ const TranscriptViewer = ({
                     >
                         <span className="flex-1">
                             <span
-                                className="font-bold text-blue-600 cursor-pointer hover:text-purple-600 transition-colors duration-300"
+                                className="text-blue-500 cursor-pointer hover:text-purple-600 transition-colors duration-300"
                                 onClick={() => onSeek(segment.time)}
                             >
                                 [

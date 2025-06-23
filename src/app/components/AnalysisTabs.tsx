@@ -102,7 +102,7 @@ const AnalysisTabs = ({
         label: string;
     }) => (
         <button
-            className={`px-6 py-3 font-semibold rounded-t-lg transition-all duration-300 ${
+            className={`px-6 py-2 font-semibold rounded-t-lg transition-all duration-300 ${
                 activeTab === tabName
                     ? "text-black border-b-2 border-blue-500"
                     : "text-gray-400 hover:text-gray-600 border-b-2 border-transparent"
@@ -114,14 +114,14 @@ const AnalysisTabs = ({
     );
 
     return (
-        <div className="w-full lg:w-1/2 flex flex-col h-[600px]">
+        <div className="w-full lg:w-1/2 flex flex-col h-[650px]">
             <div className="flex space-x-2 mb-4 border-b-2 border-gray-100">
                 <TabButton tabName="transcript" label="자막" />
                 <TabButton tabName="analysis" label="주요 표현" />
                 {/* <TabButton tabName="questions" label="💬 AI 대화" /> */}
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 bg-gray-50 rounded-xl">
+            <div className="flex-1 overflow-y-auto bg-gray-50 rounded-xl [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                 {activeTab === "analysis" && (
                     <div className="text-gray-700 space-y-6">
                         {user && savedExpressions.length > 0 && (
