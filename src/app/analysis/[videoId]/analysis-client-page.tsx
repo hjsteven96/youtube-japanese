@@ -32,7 +32,7 @@ import { createUserProfile } from "../../../lib/user";
 import { PLANS, UserProfile } from "../../../lib/plans";
 
 // --- 타입 정의 (변경 없음) ---
-interface GeminiResponseData {
+export interface GeminiResponseData {
     analysis: {
         summary: string;
         keywords: string[];
@@ -46,6 +46,10 @@ interface GeminiResponseData {
     duration?: number | null;
 }
 
+interface AnalysisPageComponentProps {
+    initialAnalysisData: GeminiResponseData | null;
+}
+
 const processTranscript = (data: GeminiResponseData): GeminiResponseData => {
     if (data.transcript_text && typeof data.transcript_text === "string") {
         data.transcript_text = data.transcript_text.replace(/\\n/g, "\n");
@@ -53,7 +57,9 @@ const processTranscript = (data: GeminiResponseData): GeminiResponseData => {
     return data;
 };
 
-function AnalysisPageComponent() {
+
+function AnalysisPageComponent({ initialAnalysisData }: AnalysisPageComponentProps) {
+    const [analysisData, setAnalysisData] = useState<GeminiResponseData | null>(initialAnalysisData);
     const params = useParams();
     const router = useRouter();
     const videoId = params.videoId as string;
@@ -61,9 +67,7 @@ function AnalysisPageComponent() {
     const [user, setUser] = useState<User | null>(null);
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [authInitialized, setAuthInitialized] = useState(false);
-    const [analysisData, setAnalysisData] = useState<GeminiResponseData | null>(
-        null
-    );
+  
     const [videoTitle, setVideoTitle] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
@@ -566,10 +570,10 @@ function AnalysisPageComponent() {
     );
 }
 
-export default function AnalysisPageWrapper() {
+export default function AnalysisPageWrapper({ initialAnalysisData }: AnalysisPageComponentProps) {
     return (
         <Suspense fallback={<LoadingAnimation />}>
-            <AnalysisPageComponent />
+            <AnalysisPageComponent initialAnalysisData={initialAnalysisData} />
         </Suspense>
     );
 }
