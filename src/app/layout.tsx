@@ -25,7 +25,7 @@ export const metadata: Metadata = {
             `https://${process.env.VERCEL_URL}` ||
             "http://localhost:3000"
     ),
-    title: "Lincue - 링크만 넣으면 영어로 큐! YouTube로 배우는 영어",
+    title: "Lingto와 함꼐 YouTube로 영어 공부하세요",
     description:
         "YouTube 영상을 AI로 분석하여 실전 영어를 학습하세요. 자막, 핵심 표현, AI 대화 연습까지!",
     keywords: [
@@ -33,13 +33,18 @@ export const metadata: Metadata = {
         "YouTube 영어",
         "AI 영어교육",
         "영어회화",
+        "미드 자막",
+        "영어 자막",
+        "영어 공부",
+        "미드 영어",
+        "유튜브 영어",
         "영상학습",
     ],
-    authors: [{ name: "Your Company Name" }],
+    authors: [{ name: "timetobe.inc" }],
     // PWA를 위한 manifest 경로
     manifest: "/manifest.json",
     openGraph: {
-        title: "YouTube로 배우는 영어 - AI 영어학습 플랫폼",
+        title: "YouTube로 배우는 영어 - AI 영어학습",
         description:
             "YouTube 영상으로 실전 영어를 배우고 AI와 대화하며 연습하세요",
         type: "website",
@@ -64,8 +69,8 @@ export const metadata: Metadata = {
     icons: {
         icon: [
             { url: "/favicon.ico" },
-            { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
-            { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+            // { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+            // { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
         ],
         apple: [{ url: "/apple-touch-icon.png" }],
     },
