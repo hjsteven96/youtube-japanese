@@ -221,13 +221,13 @@ export default function Home() {
             <div className="w-full max-w-2xl">
                 <header className="text-center mb-8">
                     <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3 flex items-center justify-center">
-                        Lin:cue
+                        Ling:to
                         <span className="ml-2 text-base font-normal text-gray-400 opacity-80">
                             Beta
                         </span>
                     </h1>
                     <p className="text-gray-600 text-lg">
-                        YouTube 링크로 배우는 영어 🎓
+                        YouTube로 배우는 영어 🎓
                     </p>
                 </header>
 
@@ -312,12 +312,11 @@ export default function Home() {
                 )}
             </div>
 
-            <div className="w-full max-w-3xl mt-8 px-4 space-y-12">
+            <div className="w-full max-w-3xl mt-8 px-4 space-y-8">
                 <RecentVideos />
                 <TrendingVideos />
             </div>
 
-            {/* --- ⭐️ 통합된 Alert 컴포넌트 --- */}
             {isAlertVisible && (
                 <Alert
                     title={alertConfig.title}
@@ -335,7 +334,7 @@ export default function Home() {
                             "_blank"
                         )
                     }
-                    className="relative bg-gradient-to-r from-blue-300/80 to-white/30
+                    className="relative bg-gradient-to-r from-white to-blue-100
                backdrop-blur-md border border-white/30
                text-gray-700 font-semibold py-3 px-6 rounded-full
                shadow-md transition-all duration-300
