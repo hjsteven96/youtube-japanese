@@ -433,7 +433,7 @@ function AnalysisPageComponent({
     return (
         <>
             <AnalysisHeader />
-            <div className="min-h-screen flex flex-col items-center py-4 bg-gradient-to-br from-blue-50 to-purple-50">
+            <div className="min-h-screen flex flex-col items-center pt-10 py-4 bg-gradient-to-br from-blue-50 to-purple-50">
                 {loading && <LoadingAnimation />}
 
                 {error && !loading && (

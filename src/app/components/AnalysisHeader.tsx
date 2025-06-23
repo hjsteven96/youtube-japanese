@@ -105,7 +105,7 @@ export default function AnalysisHeader() {
                     {/* 우측: 공유하기 */}
                     <button
                         onClick={handleShare}
-                        className="flex items-center space-x-2 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors duration-200"
+                        className="flex items-center space-x-2 md:hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors duration-200"
                     >
                         <ShareIcon className="h-5 w-5" />
                         {!isMobile && <span className="text-sm">공유하기</span>}
