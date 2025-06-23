@@ -1,6 +1,7 @@
 // src/app/components/TranscriptViewer.tsx
 "use client";
 
+// *** useRef와 useEffect를 import에 추가 ***
 import React, { useState, useRef, useEffect } from "react";
 import { User } from "firebase/auth";
 import { SavedExpression } from "./SavedExpressions";
@@ -51,77 +52,62 @@ const TranscriptViewer = ({
     videoDuration,
     onShowToast,
 }: TranscriptViewerProps) => {
-    console.log("TranscriptViewer received user:", user);
     const transcriptContainerRef = useRef<HTMLDivElement>(null);
     const tooltipRef = useRef<HTMLDivElement>(null);
-    const tooltipTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    
+    // *** 추가 1: 각 자막 세그먼트의 DOM 요소를 저장할 ref 배열 생성 ***
+    const segmentRefs = useRef<(HTMLParagraphElement | null)[]>([]);
 
     const [showTooltip, setShowTooltip] = useState(false);
     const [tooltipText, setTooltipText] = useState("");
     const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
-    const [interpretationResult, setInterpretationResult] = useState<
-        string | null
-    >(null);
+    const [interpretationResult, setInterpretationResult] = useState<string | null>(null);
     const [isInterpreting, setIsInterpreting] = useState(false);
-    const [selectedFullSentenceContext, setSelectedFullSentenceContext] =
-        useState<string>("");
+    const [selectedFullSentenceContext, setSelectedFullSentenceContext] = useState<string>("");
     const [showAlert, setShowAlert] = useState(false);
     const [alertMessage, setAlertMessage] = useState({
         title: "",
         subtitle: "",
     });
 
-    const handleSaveInterpretation = async () => {
-        console.log("!!! SAVE BUTTON ACTION TRIGGERED !!!");
+    // *** 추가 2: activeSegmentIndex가 변경될 때마다 스크롤을 이동시키는 useEffect ***
+    useEffect(() => {
+        if (activeSegmentIndex === -1) return;
 
+        const activeElement = segmentRefs.current[activeSegmentIndex];
+
+        if (activeElement) {
+            activeElement.scrollIntoView({
+                behavior: "smooth", // 부드럽게 스크롤
+                block: "start",     // 요소를 뷰포트 중앙에 위치
+            });
+        }
+    }, [activeSegmentIndex]); // activeSegmentIndex가 바뀔 때만 실행
+
+    const handleSaveInterpretation = async () => {
         if (!user || !tooltipText || !interpretationResult || !youtubeUrl) {
-            console.log("저장할 데이터 부족:", {
-                user: !!user,
-                tooltipText: !!tooltipText,
-                interpretationResult: !!interpretationResult,
-                youtubeUrl: !!youtubeUrl,
-            });
-            setAlertMessage({
-                title: "저장 오류",
-                subtitle: "저장할 데이터가 부족합니다.",
-            });
+            setAlertMessage({ title: "저장 오류", subtitle: "저장할 데이터가 부족합니다." });
             setShowAlert(true);
             return;
         }
-
         const videoId = extractVideoId(youtubeUrl);
         if (!videoId) {
-            setAlertMessage({
-                title: "저장 오류",
-                subtitle: "유효한 YouTube 영상 ID를 찾을 수 없습니다.",
-            });
+            setAlertMessage({ title: "저장 오류", subtitle: "유효한 YouTube 영상 ID를 찾을 수 없습니다." });
             setShowAlert(true);
             return;
         }
-
-        const newExpressionData = {
-            originalText: tooltipText,
-            interpretation: interpretationResult,
-            youtubeUrl: youtubeUrl,
-            videoId: videoId,
-            timestamp: new Date(),
-        };
-
-        console.log(
-            "TranscriptViewer: Calling onSave prop with data:",
-            newExpressionData
-        );
         try {
-            await onSave(newExpressionData);
-
-            // 저장이 완료된 후 툴팁을 닫습니다.
+            await onSave({
+                originalText: tooltipText,
+                interpretation: interpretationResult,
+                youtubeUrl,
+                videoId,
+                timestamp: new Date(),
+            });
             setShowTooltip(false);
         } catch (error) {
             console.error("해석 결과 저장 중 오류 발생:", error);
-            setAlertMessage({
-                title: "저장 오류",
-                subtitle: "해석 결과 저장에 실패했습니다.",
-            });
+            setAlertMessage({ title: "저장 오류", subtitle: "해석 결과 저장에 실패했습니다." });
             setShowAlert(true);
         }
     };
@@ -130,7 +116,6 @@ const TranscriptViewer = ({
         if (!tooltipText) return;
         setIsInterpreting(true);
         setInterpretationResult(null);
-
         try {
             const response = await fetch("/api/interpret", {
                 method: "POST",
@@ -151,85 +136,63 @@ const TranscriptViewer = ({
         }
     };
 
-    // [핵심 수정 2] 텍스트 드래그(선택) 핸들러 로직 단순화
     const handleTextSelection = () => {
         const selection = window.getSelection();
         const selectedText = selection?.toString().trim();
 
         if (selectedText && selectedText.length > 0) {
-            // 새 텍스트가 선택되면, 기존 해석 결과를 초기화하고 툴팁을 다시 표시
             setInterpretationResult(null);
             setTooltipText(selectedText);
-
             const parentElement = selection?.anchorNode?.parentElement;
-            const fullSentence =
-                parentElement?.textContent
-                    ?.replace(/\[\d{2}:\d{2}\]\s*/g, "")
-                    .trim() || "";
+            const fullSentence = parentElement?.textContent?.replace(/\[\d{2}:\d{2}\]\s*/g, "").trim() || "";
             setSelectedFullSentenceContext(fullSentence || selectedText);
-
             const range = selection!.getRangeAt(0);
             const rect = range.getBoundingClientRect();
-
             if (transcriptContainerRef.current) {
-                const containerRect =
-                    transcriptContainerRef.current.getBoundingClientRect();
+                const containerRect = transcriptContainerRef.current.getBoundingClientRect();
                 const xPos = rect.left - containerRect.left + rect.width / 2;
                 const yPos = rect.top - containerRect.top - 10;
-
                 setTooltipPosition({ x: xPos, y: yPos });
                 setShowTooltip(true);
             }
         }
     };
 
-    // 툴팁 외부 클릭 시 닫는 로직
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if (
-                tooltipRef.current &&
-                !tooltipRef.current.contains(event.target as Node)
-            ) {
+            if (tooltipRef.current && !tooltipRef.current.contains(event.target as Node)) {
                 setShowTooltip(false);
             }
         };
-
         document.addEventListener("mousedown", handleClickOutside);
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
-        };
+        return () => document.removeEventListener("mousedown", handleClickOutside);
     }, []);
 
-    // JSX 렌더링 부분
     return (
         <div
             ref={transcriptContainerRef}
             className="text-gray-700 relative"
-            onMouseUp={handleTextSelection} // 마우스 놓을 때 텍스트 선택 감지
+            onMouseUp={handleTextSelection}
         >
             {parsedTranscript.map((segment, index) => {
                 const isCurrent = index === activeSegmentIndex;
                 const nextSegment = parsedTranscript[index + 1];
-                const segmentEndTime = nextSegment
-                    ? nextSegment.time
-                    : videoDuration || segment.time + 5; // 다음 구간이 없으면 영상 끝 또는 5초 뒤
-                const isLoopingThisSegment =
-                    isLooping && currentLoopStartTime === segment.time;
+                const segmentEndTime = nextSegment ? nextSegment.time : videoDuration || segment.time + 5;
+                const isLoopingThisSegment = isLooping && currentLoopStartTime === segment.time;
 
                 return (
                     <p
                         key={index}
-                        className={`py-2 px-4 transition-all duration-300 flex justify-between items-center relativegroup
-                            ${
-                                isCurrent
-                                    ? "transform scale-104"
-                                    : "bg-white"
+                        // *** 추가 3: 생성된 ref를 각 p 태그에 연결 ***
+                        ref={(el) => {
+                            if (segmentRefs.current) {
+                                segmentRefs.current[index] = el;
                             }
-                            ${
-                                isLoopingThisSegment
-                                    ? "border-2 border-purple-500"
-                                    : ""
-                            }
+                        }}
+                        // 이전에 수정한 클래스를 그대로 사용합니다.
+                        className={`py-2 pl-4 pr-14 transition-all duration-300 relative group
+                            ${isCurrent ? "transform scale-103 bg-blue-50" : "bg-white"}
+                            ${isLoopingThisSegment ? "border-2 border-purple-500 ring-2 ring-purple-200" : ""}
                         `}
                     >
                         <span className="flex-1">
@@ -237,42 +200,22 @@ const TranscriptViewer = ({
                                 className="text-blue-500 cursor-pointer hover:text-purple-600 transition-colors duration-300"
                                 onClick={() => onSeek(segment.time)}
                             >
-                                [
-                                {String(Math.floor(segment.time / 60)).padStart(
-                                    2,
-                                    "0"
-                                )}
-                                :
-                                {String(Math.floor(segment.time % 60)).padStart(
-                                    2,
-                                    "0"
-                                )}
-                                ]
+                                [{String(Math.floor(segment.time / 60)).padStart(2, "0")}:
+                                {String(Math.floor(segment.time % 60)).padStart(2, "0")}]
                             </span>{" "}
-                            <span
-                                className={`${
-                                    isCurrent ? "font-medium" : "text-gray-600"
-                                } whitespace-pre-wrap`}
-                            >
+                            <span className={`${isCurrent ? "font-medium" : "text-gray-600"} whitespace-pre-wrap`}>
                                 {segment.text}
                             </span>
                         </span>
                         <button
-                            onClick={() =>
-                                onLoopToggle(segment.time, segmentEndTime)
-                            }
+                            onClick={() => onLoopToggle(segment.time, segmentEndTime)}
                             className={`absolute right-4 top-1/2 transform -translate-y-1/2 p-2 rounded-full transition-all duration-300
-                                ${
-                                    isLoopingThisSegment
-                                        ? "bg-purple-200 text-white"
-                                        : "bg-gray-100 text-gray-600 hover:bg-gray-200 group-hover:opacity-100 opacity-0 lg:opacity-0"
+                                ${isLoopingThisSegment
+                                    ? "opacity-100 bg-purple-500 text-white"
+                                    : "bg-gray-100 text-gray-600 hover:bg-gray-200 group-hover:opacity-100 opacity-0"
                                 }
                             `}
-                            title={
-                                isLoopingThisSegment
-                                    ? "구간 반복 중지"
-                                    : "구간 반복 시작"
-                            }
+                            title={isLoopingThisSegment ? "구간 반복 중지" : "구간 반복 시작"}
                         >
                             {isLoopingThisSegment ? "⏹️" : "🔁"}
                         </button>
@@ -336,13 +279,7 @@ const TranscriptViewer = ({
                 <Alert
                     title={alertMessage.title}
                     subtitle={alertMessage.subtitle}
-                    buttons={[
-                        {
-                            text: "확인",
-                            onClick: () => setShowAlert(false),
-                            isPrimary: true,
-                        },
-                    ]}
+                    buttons={[{ text: "확인", onClick: () => setShowAlert(false), isPrimary: true }]}
                     onClose={() => setShowAlert(false)}
                 />
             )}
