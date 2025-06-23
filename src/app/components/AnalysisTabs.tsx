@@ -139,12 +139,12 @@ const AnalysisTabs = ({
             {/* 'fflex-1' 오타를 'flex-1'로 수정했습니다. */}
             <div className="flex-1 overflow-y-auto rounded-b-2xl hide-scrollbar">
                 {activeTab === "analysis" && (
-                <div className="p-4 md:p-6 space-y-6 text-gray-700">
+                <div className="md:p-2 space-y-2 text-gray-700">
                         {user && savedExpressions.length > 0 && (
                             <div className="bg-white p-6 rounded-lg shadow-sm">
-                                <h3 className="text-xl font-bold mb-3 flex items-center text-green-600">
+                                <h2 className="text-xl font-bold mb-3 flex items-center text-green-600">
                                     📌 내가 저장한 표현
-                                </h3>
+                                </h2>
                                 <SavedExpressions
                                     expressions={savedExpressions}
                                     onDelete={onDeleteExpression}
@@ -154,9 +154,9 @@ const AnalysisTabs = ({
 
                         {analysis.keywords?.length > 0 && (
                             <div className="bg-white p-6 rounded-lg shadow-sm">
-                                <h3 className="text-xl font-bold mb-3 flex items-center text-purple-600">
+                                <h2 className="text-xl font-bold mb-3 flex items-center text-purple-600">
                                     🔑 핵심 단어
-                                </h3>
+                                </h2>
                                 <div className="flex flex-wrap gap-2">
                                     {analysis.keywords.map((keyword, index) => (
                                         <span
@@ -171,9 +171,9 @@ const AnalysisTabs = ({
                         )}
                         {analysis.slang_expressions?.length > 0 && (
                             <div className="bg-white p-6 rounded-lg shadow-sm">
-                                <h3 className="text-xl font-bold mb-3 flex items-center text-green-600">
+                                <h2 className="text-xl font-bold mb-3 flex items-center text-green-600">
                                     💡 실전 표현
-                                </h3>
+                                </h2>
                                 <ul className="space-y-3">
                                     {analysis.slang_expressions.map(
                                         (slang, index) => (
@@ -217,9 +217,9 @@ const AnalysisTabs = ({
                 {activeTab === "questions" && (
                     <div className="text-gray-700">
                         <div className="bg-white p-6 rounded-lg shadow-sm">
-                            <h3 className="text-xl font-bold mb-4 flex items-center text-purple-600">
+                            <h2 className="text-xl font-bold mb-4 flex items-center text-purple-600">
                                 🤖 AI 영어 선생님과 대화하기
-                            </h3>
+                            </h2>
                             {analysis.main_questions?.length > 0 ? (
                                 <div className="space-y-3">
                                     <p className="text-gray-600 mb-4">

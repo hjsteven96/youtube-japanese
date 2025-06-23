@@ -51,9 +51,9 @@ const VideoPlayer = ({
 
             {title && (
                 <div className="mt-4 mb-2 m-3">
-                    <h2 className="text-base md:text-xl lg:text-2xl font-bold text-gray-800">
-                        {title}
-                    </h2>
+                    <h1 className="text-base md:text-xl lg:text-2xl font-bold text-gray-800">
+                        {title} 자막으로 영어 공부하기
+                    </h1>
                 </div>
             )}
 
