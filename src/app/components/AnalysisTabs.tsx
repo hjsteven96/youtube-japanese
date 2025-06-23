@@ -43,6 +43,18 @@ interface AnalysisTabsProps {
     onShowToast: (message: string) => void;
 }
 
+// 스크롤바를 숨기기 위한 CSS 클래스입니다.
+// globals.css와 같은 전역 CSS 파일에 아래 스타일을 추가해주세요.
+/*
+.hide-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+*/
+
 const AnalysisTabs = ({
     analysis,
     transcript,
@@ -114,6 +126,7 @@ const AnalysisTabs = ({
     );
 
     return (
+        
         <div className="w-full lg:w-1/2 flex flex-col h-[650px]">
             <div className="flex space-x-2 mb-4 border-b-2 border-gray-100">
                 <TabButton tabName="transcript" label="자막" />
@@ -121,9 +134,12 @@ const AnalysisTabs = ({
                 {/* <TabButton tabName="questions" label="💬 AI 대화" /> */}
             </div>
 
-            <div className="flex-1 overflow-y-auto bg-gray-50 rounded-xl [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            {/* --- 수정된 부분 --- */}
+            {/* 'hide-scrollbar' 클래스를 추가하여 스크롤바를 숨깁니다. */}
+            {/* 'fflex-1' 오타를 'flex-1'로 수정했습니다. */}
+            <div className="flex-1 overflow-y-auto rounded-b-2xl hide-scrollbar">
                 {activeTab === "analysis" && (
-                    <div className="text-gray-700 space-y-6">
+                <div className="p-4 md:p-6 space-y-6 text-gray-700">
                         {user && savedExpressions.length > 0 && (
                             <div className="bg-white p-6 rounded-lg shadow-sm">
                                 <h3 className="text-xl font-bold mb-3 flex items-center text-green-600">

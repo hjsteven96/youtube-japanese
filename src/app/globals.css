@@ -467,3 +467,13 @@ select:focus {
 .tooltip-button {
     @apply text-gray-700 text-sm rounded-lg px-4 py-2.5 flex items-center gap-2 font-medium;
 }
+
+/* 모든 브라우저에서 스크롤바 숨기기 */
+.hide-scrollbar::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera*/
+  }
+  
+  .hide-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
