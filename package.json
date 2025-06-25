@@ -11,12 +11,15 @@
     "dependencies": {
         "@google/genai": "^1.5.1",
         "@heroicons/react": "^2.2.0",
+        "@sparticuz/chromium": "^137.0.1",
         "clsx": "^2.1.1",
         "firebase": "^11.9.1",
         "next": "15.3.4",
+        "puppeteer-core": "^24.10.2",
         "react": "^19.0.0",
         "react-dom": "^19.0.0",
         "react-player": "^2.16.0",
+        "youtube-transcript": "^1.2.1",
         "ytdl-core": "^4.11.5"
     },
     "devDependencies": {

@@ -317,7 +317,7 @@ export default function Home() {
                         </div>
                     )}
                 </div>
-                <div className="w-full max-w-3xl mt-8 px-4 space-y-12">
+                <div className="w-full max-w-3xl mt-2 px-1 space-y-10">
                     <RecentVideos />
                     <TrendingVideos />
                 </div>

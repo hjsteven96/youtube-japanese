@@ -1,7 +1,7 @@
 import React from "react";
 
 const LoadingAnimation = () => (
-    <div className="flex flex-col items-center justify-center p-8">
+    <div className="flex flex-col items-center justify-center p-16">
         <div className="relative w-32 h-32">
             <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-400 via-purple-500 to-pink-500 animate-spin">
                 <div className="absolute inset-2 bg-white rounded-full"></div>

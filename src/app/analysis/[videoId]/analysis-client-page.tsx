@@ -36,7 +36,6 @@ import { PLANS, UserProfile } from "../../../lib/plans";
 import useIsMobile from "../../../lib/useIsMobile";
 import FloatingPlayerControls from "../../components/FloatingPlayerControls";
 
-// 타입을 export하여 다른 파일(page.tsx)에서 재사용 가능하게 함
 export interface GeminiResponseData {
     analysis: {
         summary: string;
@@ -51,7 +50,6 @@ export interface GeminiResponseData {
     duration?: number | null;
 }
 
-// 컴포넌트가 받을 props 타입 정의
 interface AnalysisPageComponentProps {
     initialAnalysisData: GeminiResponseData | null;
 }
@@ -74,14 +72,15 @@ function AnalysisPageComponent({
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [authInitialized, setAuthInitialized] = useState(false);
 
-    // 1. [개선] state를 서버에서 받은 props로 초기화
+    // [수정] State 초기화는 initialAnalysisData를 사용하되, 로딩 상태를 명확히 관리
     const [analysisData, setAnalysisData] = useState<GeminiResponseData | null>(
-        initialAnalysisData ? processTranscript(initialAnalysisData) : null
+        null
     );
-    // 2. [개선] 로딩 상태는 초기 데이터가 없을 때만 true
-    const [loading, setLoading] = useState(!initialAnalysisData);
+    const [isTranscriptLoading, setIsTranscriptLoading] = useState(true);
+    const [isAnalysisLoading, setIsAnalysisLoading] = useState(true);
     const [error, setError] = useState("");
 
+    // 나머지 state는 기존과 동일
     const [isRedirecting, setIsRedirecting] = useState(false);
     const [showToast, setShowToast] = useState(false);
     const [toastMessage, setToastMessage] = useState("");
@@ -111,7 +110,6 @@ function AnalysisPageComponent({
         ? PLANS[userProfile.plan].aiConversation
         : false;
 
-    // --- Hooks (기존과 동일) ---
     const {
         isRecording,
         isPlayingAudio,
@@ -137,8 +135,6 @@ function AnalysisPageComponent({
         user: user,
     });
 
-    // --- useEffect Hooks (로직 수정 및 분리) ---
-
     // [유지] 사용자 인증 상태 관리
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -154,21 +150,25 @@ function AnalysisPageComponent({
         return () => unsubscribe();
     }, []);
 
-    // 새로운 분석 데이터 로딩 로직 (초기 데이터 없을 때만 실행)
+    // [수정] 데이터 로딩 로직 전체 개편 (캐시 우선)
     useEffect(() => {
-        // 서버에서 데이터를 받아왔으면, 클라이언트에서 다시 fetch할 필요 없음
-        if (initialAnalysisData) return;
-
         let isMounted = true;
 
-        const loadNewAnalysis = async () => {
-            // 필수 조건 확인
-            if (!isMounted || !videoId || !authInitialized) return;
+        const fetchAnalysisData = async () => {
+            // 1순위: 서버에서 전달된 캐시 데이터(initialAnalysisData)가 있으면 사용
+            if (initialAnalysisData) {
+                if (isMounted) {
+                    setAnalysisData(processTranscript(initialAnalysisData));
+                    setIsTranscriptLoading(false);
+                    setIsAnalysisLoading(false);
+                }
+                return;
+            }
 
-            // 로그인 상태가 아니면 더 이상 진행하지 않음 (프로필 필요)
+            // 필수 조건 (로그인 등) 확인
+            if (!videoId || !authInitialized) return;
             if (!user || !userProfile) {
                 if (authInitialized) {
-                    // 인증 상태 확인이 끝난 후에만 리디렉션
                     setIsRedirecting(true);
                     setToastMessage("이 영상은 로그인 후 분석할 수 있습니다.");
                     setShowToast(true);
@@ -177,10 +177,27 @@ function AnalysisPageComponent({
                 return;
             }
 
-            setLoading(true);
+            setIsTranscriptLoading(true);
+            setIsAnalysisLoading(true);
             setError("");
 
             try {
+                // 2순위: 클라이언트에서 Firestore 캐시를 직접 확인
+                const docRef = doc(db, "videoAnalyses", videoId);
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    if (isMounted) {
+                        setAnalysisData(
+                            processTranscript(
+                                docSnap.data() as GeminiResponseData
+                            )
+                        );
+                    }
+                    return; // 캐시 데이터 사용 후 함수 종료
+                }
+
+                // 3순위: 캐시가 없으면 새로운 분석 시작
                 // 사용량 및 영상 길이 제한 확인
                 const plan = PLANS[userProfile.plan];
                 const today = new Date().toISOString().split("T")[0];
@@ -188,10 +205,9 @@ function AnalysisPageComponent({
                     userProfile.usage.lastAnalysisDate === today &&
                     userProfile.usage.analysisCount >= plan.dailyAnalysisLimit
                 ) {
-                    setError(
+                    throw new Error(
                         `오늘의 분석 횟수(${userProfile.usage.analysisCount}/${plan.dailyAnalysisLimit}회)를 모두 사용하셨습니다.`
                     );
-                    return;
                 }
 
                 const metaRes = await fetch(
@@ -204,27 +220,25 @@ function AnalysisPageComponent({
                 const metaData = await metaRes.json();
 
                 if (metaData.duration > plan.maxVideoDuration) {
-                    setError(
+                    throw new Error(
                         `${plan.name} 등급은 ${Math.floor(
                             plan.maxVideoDuration / 60
                         )}분 이하 영상만 분석 가능합니다.`
                     );
-                    return;
                 }
 
-                // 분석 횟수 차감 및 API 호출
                 const userDocRef = doc(db, "users", user.uid);
                 await updateDoc(userDocRef, {
                     "usage.analysisCount": increment(1),
                     "usage.lastAnalysisDate": today,
                 });
 
-                const transcriptRes = await fetch("/api/transcript", {
+                // 1단계 API 호출: 자막 생성
+                const transcriptRes = await fetch("/api/generate-transcript", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         youtubeUrl: `https://www.youtube.com/watch?v=${videoId}`,
-                        userId: user.uid,
                     }),
                 });
 
@@ -234,54 +248,70 @@ function AnalysisPageComponent({
                     });
                     throw new Error(
                         (await transcriptRes.json()).error ||
-                            "영상 분석에 실패했습니다."
+                            "자막 생성에 실패했습니다."
                     );
                 }
 
-                const newAnalysisData = await transcriptRes.json();
-                const finalData = processTranscript({
-                    ...newAnalysisData,
-                    ...metaData,
+                const { transcript_text } = await transcriptRes.json();
+
+                if (isMounted) {
+                    setAnalysisData({
+                        transcript_text,
+                        analysis: {
+                            summary: "AI가 영상 내용을 분석하고 있어요...",
+                            keywords: [],
+                            slang_expressions: [],
+                            main_questions: [],
+                        },
+                        ...metaData,
+                    });
+                    setIsTranscriptLoading(false); // 자막 로딩 완료
+                }
+
+                // 2단계 API 호출: 자막 분석
+                const analysisRes = await fetch("/api/analyze-transcript", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ transcript_text }),
                 });
 
-                if (isMounted) setAnalysisData(finalData);
+                if (!analysisRes.ok) {
+                    throw new Error("AI 내용 분석 중 오류가 발생했습니다.");
+                }
 
-                // 결과 캐싱 및 로그 저장
-                await setDoc(doc(db, "videoAnalyses", videoId), {
-                    ...finalData,
-                    timestamp: new Date().toISOString(),
-                });
-                await addDoc(collection(db, "videoActivityLogs"), {
-                    videoId,
-                    activityType: "ANALYSIS_SUCCESS",
-                    userId: user.uid,
-                    timestamp: new Date().toISOString(),
-                    youtubeTitle: metaData.youtubeTitle,
-                    duration: metaData.duration,
-                });
+                const { analysis } = await analysisRes.json();
+
+                if (isMounted) {
+                    // 최종 데이터 완성 및 캐시 저장
+                    setAnalysisData((currentData) => {
+                        const finalData = { ...currentData!, analysis };
+                        setDoc(doc(db, "videoAnalyses", videoId), {
+                            ...finalData,
+                            timestamp: new Date().toISOString(),
+                        });
+                        // 로그 저장은 여기서도 가능
+                        return finalData;
+                    });
+                }
             } catch (err: any) {
                 if (isMounted)
                     setError(err.message || "알 수 없는 오류가 발생했습니다.");
             } finally {
-                if (isMounted) setLoading(false);
+                if (isMounted) {
+                    setIsTranscriptLoading(false);
+                    setIsAnalysisLoading(false);
+                }
             }
         };
 
-        loadNewAnalysis();
+        fetchAnalysisData();
 
         return () => {
             isMounted = false;
         };
-    }, [
-        videoId,
-        user,
-        userProfile,
-        authInitialized,
-        router,
-        initialAnalysisData,
-    ]);
+    }, [videoId, user, userProfile, authInitialized, router]);
 
-    // 저장된 표현 불러오기
+    // 저장된 표현 불러오기 (변경 없음)
     useEffect(() => {
         if (!user || !videoId || !analysisData) {
             setSavedExpressions([]);
@@ -303,7 +333,7 @@ function AnalysisPageComponent({
         fetchSavedExpressions();
     }, [user, videoId, analysisData]);
 
-    // 구간 반복 로직
+    // 구간 반복 로직 (변경 없음)
     useEffect(() => {
         if (
             isLooping &&
@@ -408,17 +438,17 @@ function AnalysisPageComponent({
         setShowToast(true);
     };
 
-    //재생/일시정지 토글 핸들러
     const handlePlayPause = () => {
         setIsPlaying(!isPlaying);
     };
 
-    // 재생 속도 변경 핸들러
     const handlePlaybackRateChange = (rate: number) => {
         setPlaybackRate(rate);
     };
 
     // --- 렌더링 로직 ---
+    const isLoading = isTranscriptLoading || !analysisData; // [수정] 전체 로딩 상태를 명확히 정의
+
     if (isRedirecting) {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen">
@@ -433,16 +463,16 @@ function AnalysisPageComponent({
     return (
         <>
             <AnalysisHeader />
-            <div className="min-h-screen flex flex-col items-center pt-10 py-4 bg-gradient-to-br from-blue-50 to-purple-50">
-                {loading && <LoadingAnimation />}
+            <div className="min-h-screen flex flex-col items-center pt-16 py-4 bg-gradient-to-br from-blue-50 to-purple-50">
+                {isLoading && <LoadingAnimation />}
 
-                {error && !loading && (
+                {error && !isLoading && (
                     <p className="text-red-500 text-lg mt-4 text-center p-4 bg-red-100 rounded-lg w-full max-w-6xl mx-auto px-4">
                         ⚠️ {error}
                     </p>
                 )}
 
-                {analysisData && !loading && (
+                {!isLoading && analysisData && (
                     <div className="w-full max-w-6xl bg-white p-3 md:p-6 rounded-2xl shadow-xl flex flex-col lg:flex-row lg:space-x-8 mt-4 mx-auto">
                         <VideoPlayer
                             url={`https://www.youtube.com/watch?v=${videoId}`}
@@ -457,6 +487,7 @@ function AnalysisPageComponent({
                             onProgress={(state) =>
                                 setCurrentTime(state.playedSeconds)
                             }
+                            isAnalysisLoading={isAnalysisLoading}
                         />
                         <AnalysisTabs
                             analysis={analysisData.analysis}
@@ -480,11 +511,12 @@ function AnalysisPageComponent({
                             currentLoopEndTime={loopEndTime}
                             videoDuration={analysisData.duration || null}
                             onShowToast={handleShowToast}
+                            isAnalysisLoading={isAnalysisLoading}
                         />
                     </div>
                 )}
 
-                {analysisData && !loading && isMobile && (
+                {!isLoading && analysisData && isMobile && (
                     <FloatingPlayerControls
                         playerRef={playerRef}
                         isPlaying={isPlaying}
@@ -525,7 +557,6 @@ function AnalysisPageComponent({
     );
 }
 
-// Wrapper 컴포넌트는 props를 받아서 내부 컴포넌트로 전달하는 역할
 export default function AnalysisPageWrapper({
     initialAnalysisData,
 }: AnalysisPageComponentProps) {

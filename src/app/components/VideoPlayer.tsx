@@ -3,6 +3,7 @@
 import ReactPlayer from "react-player";
 import React, { useState } from "react";
 
+// [수정] isAnalysisLoading prop 추가
 interface VideoPlayerProps {
     url: string;
     title: string | null;
@@ -14,6 +15,7 @@ interface VideoPlayerProps {
     onEnded: () => void;
     onProgress: (state: { playedSeconds: number }) => void;
     playbackRate: number;
+    isAnalysisLoading: boolean; // 요약 및 분석 내용 로딩 상태
 }
 
 const VideoPlayer = ({
@@ -27,6 +29,7 @@ const VideoPlayer = ({
     onPause,
     onEnded,
     onProgress,
+    isAnalysisLoading, // [수정] prop 받기
 }: VideoPlayerProps) => {
     const [open, setOpen] = useState(false);
 
@@ -68,7 +71,7 @@ const VideoPlayer = ({
                     className="md:hidden w-full flex items-center justify-between"
                 >
                     <span className="flex items-center text-base font-semibold text-blue-600">
-                        <span className="mr-1">📋</span>영상&nbsp;요약
+                        <span className="mr-1">📋</span>영상 요약
                     </span>
 
                     {/* ▼ 화살표 아이콘 (Heroicons outline/chevron-down) */}
@@ -90,17 +93,29 @@ const VideoPlayer = ({
 
                 {/* 데스크톱 헤더 (항상 표시) */}
                 <h3 className="hidden md:flex items-center text-xl font-bold mb-3 text-blue-600">
-                    <span className="mr-2">📋</span>영상&nbsp;요약
+                    <span className="mr-2">📋</span>영상 요약
                 </h3>
 
-                {/* 요약 본문 : 모바일 open일 때만, md 이상은 항상 */}
-                <p
-                    className={`leading-relaxed text-gray-700 whitespace-pre-line ${
+                {/* [수정] 요약 본문: 로딩 상태에 따라 조건부 렌더링 */}
+                <div
+                    className={`whitespace-pre-line ${
                         open ? "mt-4" : "hidden"
                     } md:block`}
                 >
-                    {summary}
-                </p>
+                    {isAnalysisLoading ? (
+                        // 분석 로딩 중일 때 보여줄 스켈레톤 UI
+                        <div className="space-y-2 animate-pulse">
+                            <div className="h-4 bg-gray-200 rounded w-full"></div>
+                            <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+                            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                        </div>
+                    ) : (
+                        // 분석 완료 후 실제 요약 내용
+                        <p className="leading-relaxed text-gray-700">
+                            {summary}
+                        </p>
+                    )}
+                </div>
             </div>
         </div>
     );
