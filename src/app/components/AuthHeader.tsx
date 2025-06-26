@@ -64,9 +64,12 @@ export default function AuthHeader() {
                         <>
                             <span className="text-gray-700 text-sm md:text-base">
                                 안녕하세요,{" "}
-                                <span className="font-semibold text-blue-600">
+                                <Link
+                                    href="/mypage"
+                                    className="font-semibold text-blue-600 underline"
+                                >
                                     {user.displayName || user.email}
-                                </span>{" "}
+                                </Link>{" "}
                                 님!
                             </span>
                             <button
