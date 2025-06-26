@@ -54,9 +54,9 @@ export const metadata: Metadata = {
         images: [
             {
                 url: "/og-image.png", // metadataBase를 기준으로 절대 경로가 됨
-                width: 1200,
-                height: 630,
-                alt: "YouTube로 배우는 영어",
+                width: 800,
+                height: 400,
+                alt: "YouTube로 배우는 영어, 링투",
             },
         ],
     },
@@ -74,7 +74,6 @@ export const metadata: Metadata = {
         ],
         apple: [{ url: "/apple-touch-icon.png" }],
     },
-    // ★ viewport, themeColor는 여기서 제거
 };
 
 // 2. Viewport 객체 별도 export

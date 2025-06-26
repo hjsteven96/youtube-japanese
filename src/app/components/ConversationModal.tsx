@@ -40,7 +40,7 @@ const ConversationModal = ({
             {/* 최상단 헤더 (타이틀과 남은 시간) */}
             <div className="absolute top-6 left-0 right-0 flex flex-col items-center gap-2 z-20">
                 {/* 로고 및 제목 */}
-                <h1 className="text-xl font-semibold text-gray-700">
+                <h1 className="text-2xl font-semibold text-gray-700">
                     <span className="font-bold text-blue-500">Ling:to</span> AI
                     대화
                 </h1>
