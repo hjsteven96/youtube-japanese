@@ -27,6 +27,13 @@ interface TranscriptViewerProps {
     currentLoopEndTime: number | null;
     videoDuration: number | null;
     onShowToast: (message: string) => void;
+    maxSavedWords: number;
+    savedExpressionsCount: number;
+    onShowAlert: (config: {
+        title: string;
+        subtitle: string;
+        buttons: { text: string; onClick: () => void; isPrimary?: boolean }[];
+    }) => void;
 }
 
 // --- 유틸리티 함수 (변경 없음) ---
@@ -51,6 +58,9 @@ const TranscriptViewer = ({
     currentLoopEndTime,
     videoDuration,
     onShowToast,
+    maxSavedWords,
+    savedExpressionsCount,
+    onShowAlert,
 }: TranscriptViewerProps) => {
     const transcriptContainerRef = useRef<HTMLDivElement>(null);
     const tooltipRef = useRef<HTMLDivElement>(null);
@@ -105,7 +115,7 @@ const TranscriptViewer = ({
         };
     }, []);
 
-    // 툴팁 관련 로직
+    // 툴크 관련 로직
     useEffect(() => {
         const showOrHideTooltip = () => {
             const selection = window.getSelection();
@@ -191,6 +201,30 @@ const TranscriptViewer = ({
                 subtitle: "저장할 데이터가 부족합니다.",
             });
             setShowAlert(true);
+            return;
+        }
+
+        // [추가] 저장 가능한 단어 수 제한
+        if (savedExpressionsCount >= maxSavedWords) {
+            onShowAlert({
+                title: "저장 한도 초과",
+                subtitle: `저장 가능한 단어(${maxSavedWords}개)를 초과했습니다. 더 많은 단어를 저장하려면 플랜을 업그레이드해주세요.`,
+                buttons: [
+                    {
+                        text: "요금제 보기",
+                        onClick: () => {
+                            window.location.href = "/pricing";
+                        },
+                        isPrimary: true,
+                    },
+                    {
+                        text: "닫기",
+                        onClick: () => {},
+                        isPrimary: false,
+                    },
+                ],
+            });
+            setShowTooltip(false);
             return;
         }
 

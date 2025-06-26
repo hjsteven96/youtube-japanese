@@ -187,6 +187,13 @@ export default function PricingPage() {
                                             {plan.monthlyTimeLimit / 60}분
                                         </span>
                                     </li>
+                                    <li className="flex items-start">
+                                        <CheckIcon className="flex-shrink-0 h-6 w-6 text-green-500" />
+                                        <span className="ml-3 text-gray-700">
+                                            저장 가능한 단어:{" "}
+                                            {plan.maxSavedWords}개
+                                        </span>
+                                    </li>
                                     {plan.aiConversation ? (
                                         <li className="flex items-start">
                                             <CheckIcon className="flex-shrink-0 h-6 w-6 text-green-500" />

@@ -4,6 +4,7 @@ import React, { useMemo } from "react";
 import TranscriptViewer from "./TranscriptViewer";
 import { User } from "firebase/auth";
 import SavedExpressions, { SavedExpression } from "./SavedExpressions";
+import { PLANS, UserProfile } from "@/lib/plans";
 
 // --- 타입 정의 ---
 interface SlangExpression {
@@ -43,6 +44,12 @@ interface AnalysisTabsProps {
     videoDuration: number | null;
     onShowToast: (message: string) => void;
     isAnalysisLoading: boolean; // 분석 내용 로딩 상태
+    userProfile: UserProfile | null; // [추가] 사용자 프로필
+    onShowAlert: (config: {
+        title: string;
+        subtitle: string;
+        buttons: { text: string; onClick: () => void; isPrimary?: boolean }[];
+    }) => void; // [추가] Alert 모달 표시 함수
 }
 
 // 스크롤바 숨김 CSS는 globals.css에 추가 필요
@@ -100,7 +107,17 @@ const AnalysisTabs = ({
     videoDuration,
     onShowToast,
     isAnalysisLoading, // [수정] prop 받기
+    userProfile, // [추가] prop 받기
+    onShowAlert, // [추가] prop 받기
 }: AnalysisTabsProps) => {
+    // [추가] 저장 가능한 단어 수 계산
+    const maxSavedWords = useMemo(() => {
+        if (!userProfile) return PLANS.free.maxSavedWords; // 비로그인 시 무료 플랜 기준
+        return PLANS[userProfile.plan].maxSavedWords;
+    }, [userProfile]);
+
+    const savedExpressionsCount = savedExpressions.length;
+
     const parsedTranscript = useMemo((): VideoSegment[] => {
         const safeTranscript = String(transcript || "");
         if (!safeTranscript.trim()) return [];
@@ -237,6 +254,9 @@ const AnalysisTabs = ({
                         currentLoopEndTime={currentLoopEndTime}
                         videoDuration={videoDuration || null}
                         onShowToast={onShowToast}
+                        maxSavedWords={maxSavedWords}
+                        savedExpressionsCount={savedExpressionsCount}
+                        onShowAlert={onShowAlert}
                     />
                 )}
 

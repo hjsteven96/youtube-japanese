@@ -9,6 +9,7 @@ export const PLANS = {
         price: "무료",
         sessionTimeLimit: 60, // 5분
         monthlyTimeLimit: 300, // 30분
+        maxSavedWords: 2,
     },
     plus: {
         name: "Plus 사용자",
@@ -18,6 +19,7 @@ export const PLANS = {
         price: "₩0",
         sessionTimeLimit: 300, // 5분
         monthlyTimeLimit: 3000, // 30분
+        maxSavedWords: 3,
     },
     pro: {
         name: "Pro 사용자",
@@ -27,6 +29,7 @@ export const PLANS = {
         price: "₩19,900",
         sessionTimeLimit: 600, // 5분
         monthlyTimeLimit: 12000, // 30분
+        maxSavedWords: 5,
     },
 };
 

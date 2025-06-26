@@ -540,6 +540,16 @@ function AnalysisPageComponent({
 
     const isLoading = isTranscriptLoading || !analysisData;
 
+    // [추가] Alert 모달 표시 함수
+    const handleShowAlert = (config: {
+        title: string;
+        subtitle: string;
+        buttons: { text: string; onClick: () => void; isPrimary?: boolean }[];
+    }) => {
+        setAlertModalContent(config);
+        setShowAlertModal(true);
+    };
+
     if (isRedirecting) {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen">
@@ -603,6 +613,8 @@ function AnalysisPageComponent({
                             videoDuration={analysisData.duration || null}
                             onShowToast={handleShowToast}
                             isAnalysisLoading={isAnalysisLoading}
+                            userProfile={userProfile}
+                            onShowAlert={handleShowAlert}
                         />
                     </div>
                 )}
@@ -633,6 +645,7 @@ function AnalysisPageComponent({
                     message={toastMessage}
                     isVisible={showToast}
                     onClose={() => setShowToast(false)}
+                    duration={3000}
                 />
 
                 {showAlertModal && (
