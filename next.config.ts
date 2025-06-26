@@ -9,6 +9,9 @@ const nextConfig: NextConfig = {
         // !! WARN !!
         ignoreBuildErrors: true,
     },
+    images: {
+        domains: ["img.youtube.com"],
+    },
     /* config options here */
     webpack: (config, { isServer }) => {
         // fluent-ffmpeg가 lib-cov 대신 lib 경로를 사용하도록 강제

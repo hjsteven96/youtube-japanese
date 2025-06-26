@@ -7,8 +7,8 @@ export const PLANS = {
         maxVideoDuration: 600, // 10분 (600초)
         aiConversation: true, // AI 대화 기능 제한
         price: "무료",
-        sessionTimeLimit: 60,   // 5분
-        monthlyTimeLimit: 300,  // 30분
+        sessionTimeLimit: 60, // 5분
+        monthlyTimeLimit: 300, // 30분
     },
     plus: {
         name: "Plus 사용자",
@@ -16,17 +16,17 @@ export const PLANS = {
         maxVideoDuration: 1200, // 30분 (1800초)
         aiConversation: true, // AI 대화 기능 사용 가능
         price: "₩0",
-        sessionTimeLimit: 300,   // 5분
-        monthlyTimeLimit: 3000,  // 30분
+        sessionTimeLimit: 300, // 5분
+        monthlyTimeLimit: 3000, // 30분
     },
     pro: {
         name: "Pro 사용자",
-        dailyAnalysisLimit: 10, // 무제한
+        dailyAnalysisLimit: 100, // 무제한
         maxVideoDuration: 3600, // 2시간 (7200초)
         aiConversation: true, // AI 대화 기능 사용 가능
         price: "₩19,900",
-        sessionTimeLimit: 600,   // 5분
-        monthlyTimeLimit: 12000,  // 30분
+        sessionTimeLimit: 600, // 5분
+        monthlyTimeLimit: 12000, // 30분
     },
 };
 
@@ -44,7 +44,5 @@ export interface UserProfile {
         lastAnalysisDate: string; // "YYYY-MM-DD" 형식
         monthlyConversationUsed: number; // 이번 달에 사용한 총 대화 시간 (초)
         conversationUsageLastReset: string; // 마지막으로 월간 사용량을 리셋한 날짜 (YYYY-MM)
-
-        
     };
 }

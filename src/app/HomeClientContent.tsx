@@ -11,6 +11,7 @@ import { createUserProfile } from "@/lib/user";
 import { PLANS, UserProfile } from "@/lib/plans";
 import Alert from "./components/Alert";
 
+import { BorderBeam } from "@/components/magicui/border-beam";
 // 기존 page.tsx의 VideoInfo 타입을 그대로 사용합니다.
 interface VideoInfo {
     url: string;
@@ -182,25 +183,6 @@ export default function HomeClientContent() {
 
     return (
         <div>
-            <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-2xl transition-all duration-300">
-                <div className="mb-6">
-                    <label
-                        htmlFor="youtubeUrl"
-                        className="block text-gray-700 text-sm font-semibold mb-3 flex items-center"
-                    >
-                        <span className="mr-2">🎬</span> YouTube 링크 입력
-                    </label>
-                    <input
-                        type="url"
-                        id="youtubeUrl"
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none transition-all duration-300 text-gray-700"
-                        placeholder="https://www.youtube.com/watch?v=..."
-                        value={urlInput}
-                        onChange={(e) => setUrlInput(e.target.value)}
-                    />
-                </div>
-            </div>
-
             <div style={{ display: "none" }}>
                 {extractVideoId(urlInput) && (
                     <ReactPlayer url={urlInput} onReady={handlePlayerReady} />
@@ -243,7 +225,7 @@ export default function HomeClientContent() {
                             videoInfo ? `/analysis/${videoInfo.videoId}` : "#"
                         }
                         onClick={handleAnalysisClick}
-                        className={`block text-center w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-bold py-3 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 ${
+                        className={`block text-center w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-bold py-3 mb-8 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 ${
                             buttonState.disabled
                                 ? "opacity-50 cursor-not-allowed"
                                 : ""
@@ -254,6 +236,38 @@ export default function HomeClientContent() {
                     </Link>
                 </div>
             )}
+
+            <div className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-2xl transition-all duration-300">
+                <div className="mb-6">
+                    <label
+                        htmlFor="youtubeUrl"
+                        className="block text-gray-700 text-sm font-semibold mb-3 flex items-center"
+                    >
+                        <span className="mr-2">🎬</span> YouTube 링크 입력
+                    </label>
+                    <div className="relative rounded-lg overflow-hidden">
+                        <input
+                            type="url"
+                            id="youtubeUrl"
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none transition-all duration-300 text-gray-700"
+                            placeholder="https://www.youtube.com/watch?v=..."
+                            value={urlInput}
+                            onChange={(e) => setUrlInput(e.target.value)}
+                        />
+                        <BorderBeam
+                            duration={8}
+                            size={500}
+                            className="absolute inset-0 from-transparent via-purple-500 to-transparent"
+                        />
+                        <BorderBeam
+                            duration={8}
+                            delay={3}
+                            size={500}
+                            className="absolute inset-0 from-transparent via-blue-500 to-transparent"
+                        />
+                    </div>
+                </div>
+            </div>
 
             {isAlertVisible && (
                 <Alert

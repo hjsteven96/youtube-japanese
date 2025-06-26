@@ -3,12 +3,17 @@ import Link from "next/link";
 interface RecentVideoItemProps {
     videoId: string;
     title: string;
+    channelName?: string;
+    summary?: string;
 }
 
 export default function RecentVideoItem({
     videoId,
     title,
+    channelName,
+    summary,
 }: RecentVideoItemProps) {
+    console.log("RecentVideoItem: received summary prop:", summary);
     const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
 
     return (
@@ -24,6 +29,16 @@ export default function RecentVideoItem({
                 <p className="text-sm font-medium text-gray-700 text-center line-clamp-2">
                     {title}
                 </p>
+                {channelName && (
+                    <p className="text-xs text-gray-500 mt-1 text-center line-clamp-1">
+                        {channelName}
+                    </p>
+                )}
+                {summary && (
+                    <p className="text-xs text-gray-500 text-center mt-1 line-clamp-2">
+                        {summary}
+                    </p>
+                )}
             </div>
         </Link>
     );

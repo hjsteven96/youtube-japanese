@@ -48,6 +48,7 @@ export interface GeminiResponseData {
     youtubeDescription?: string | null;
     thumbnailUrl?: string | null;
     duration?: number | null;
+    channelName?: string | null;
 }
 
 interface AnalysisPageComponentProps {
@@ -183,7 +184,7 @@ function AnalysisPageComponent({
                         : null
                 );
 
-                const sessionLimitInSeconds = plan.sessionTimeLimit ; // ★ 수정: 분을 초로 변환
+                const sessionLimitInSeconds = plan.sessionTimeLimit; // ★ 수정: 분을 초로 변환
                 if (durationInSeconds >= sessionLimitInSeconds - 1) {
                     setToastMessage("대화 시간이 종료되었습니다.");
                     setShowToast(true);
@@ -364,6 +365,9 @@ function AnalysisPageComponent({
                         const finalData = { ...currentData!, analysis };
                         setDoc(doc(db, "videoAnalyses", videoId), {
                             ...finalData,
+                            thumbnailUrl: metaData.thumbnailUrl || null,
+                            duration: metaData.duration || null,
+                            channelName: metaData.channelName || null,
                             timestamp: new Date().toISOString(),
                         });
                         return finalData;
@@ -385,7 +389,14 @@ function AnalysisPageComponent({
         return () => {
             isMounted = false;
         };
-    }, [videoId, user, userProfile, authInitialized, router, initialAnalysisData]);
+    }, [
+        videoId,
+        user,
+        userProfile,
+        authInitialized,
+        router,
+        initialAnalysisData,
+    ]);
 
     useEffect(() => {
         if (!user || !videoId || !analysisData) {

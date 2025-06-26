@@ -7,6 +7,39 @@ if (!GOOGLE_API_KEY) {
     console.error("CRITICAL: GOOGLE_API_KEY environment variable is not set.");
 }
 
+// YouTube URL에서 videoId 추출
+function extractVideoId(url: string): string | null {
+    const regex = /(?:v=|\/|youtu\.be\/)([a-zA-Z0-9_-]{11})[^#&?]*/;
+    const match = url.match(regex);
+    return match ? match[1] : null;
+}
+
+// YouTube Data API를 사용하여 영상 상세 정보 가져오기
+async function getYouTubeVideoDetails(videoId: string) {
+    if (!GOOGLE_API_KEY) {
+        throw new Error("Google API Key is not configured.");
+    }
+    const apiUrl = `https://www.googleapis.com/youtube/v3/videos?id=${videoId}&key=${GOOGLE_API_KEY}&part=snippet,contentDetails`;
+    const response = await fetch(apiUrl);
+    if (!response.ok) {
+        const errorData = await response.json();
+        console.error("YouTube API Error:", errorData);
+        throw new Error(
+            `Failed to fetch YouTube video details: ${response.statusText}`
+        );
+    }
+    const data = await response.json();
+    if (data.items.length === 0) {
+        throw new Error("YouTube video not found.");
+    }
+    const item = data.items[0];
+    return {
+        title: item.snippet.title,
+        channelName: item.snippet.channelTitle,
+        duration: item.contentDetails.duration,
+    };
+}
+
 export async function POST(req: NextRequest) {
     try {
         const { youtubeUrl } = await req.json();
@@ -17,6 +50,17 @@ export async function POST(req: NextRequest) {
                 { status: 400 }
             );
         }
+
+        const videoId = extractVideoId(youtubeUrl);
+        if (!videoId) {
+            return NextResponse.json(
+                { error: "Invalid YouTube URL" },
+                { status: 400 }
+            );
+        }
+
+        // YouTube 상세 정보 가져오기
+        const videoDetails = await getYouTubeVideoDetails(videoId);
 
         const prompt =
             "Analyze the provided video content and generate a structured JSON output. The JSON must contain two main fields: 'analysis' and 'transcript_text'.\n\nThe 'analysis' field must be an object containing:\n- 'summary': A very concise summary of the video content (1-2 sentences).\n- 'keywords': An array of 5 key terms that English learners might not know or find challenging.\n- 'slang_expressions': An array of objects, where each object has 'expression' and 'meaning'.\n- 'main_questions': An array of 2 main questions based on the video content.\n\nThe 'transcript_text' field must contain a detailed transcript of the video, adhering strictly to the following segmentation rules:\n1.  Each segment must begin with a timestamp in the EXACT format [MM:SS], followed immediately by the text. Example: '[00:05] This is the text at 5 seconds.'\n2.  Create a new timestamped segment for every change in speaker.\n3.  If a single person speaks for an extended period, create a new timestamped segment after a natural pause or a shift in topic.\n4.  Crucially, ensure that no single segment represents more than 90 seconds of video time. Aim for shorter, more frequent segments (ideally every 20-40 seconds) for better readability.\n5.  Do NOT include any other timestamps or time ranges within the transcript text itself.\n\nEnsure the entire output is a single, strictly valid JSON object.";
@@ -109,7 +153,16 @@ export async function POST(req: NextRequest) {
         const cleanedText = textContent.replace(/```json|```/g, "").trim();
         const parsedContent = JSON.parse(cleanedText);
 
-        return NextResponse.json(parsedContent, { status: 200 });
+        // 채널명 추가하여 응답
+        return NextResponse.json(
+            {
+                ...parsedContent,
+                channelName: videoDetails.channelName,
+                youtubeTitle: videoDetails.title,
+                duration: videoDetails.duration,
+            },
+            { status: 200 }
+        );
     } catch (error: unknown) {
         console.error("[TRANSCRIPT_API_ERROR]", error);
         const errorMessage =

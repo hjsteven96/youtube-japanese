@@ -16,6 +16,8 @@ export interface VideoInfo {
     title: string;
     duration: number;
     url: string;
+    channelName?: string;
+    summary?: string;
 }
 
 // 3. 서버에서 직접 데이터를 가져오는 비동기 함수입니다.
@@ -31,14 +33,19 @@ async function getTrendingVideos(): Promise<VideoInfo[]> {
         const videos: VideoInfo[] = [];
         querySnapshot.forEach((doc) => {
             const data = doc.data();
-            videos.push({
+            console.log("Fetched video data (page.tsx):", data);
+            const video = {
                 videoId: doc.id,
                 title: data.youtubeTitle || "제목 없음",
                 duration: data.duration || 0,
                 url:
                     data.youtubeUrl ||
                     `https://www.youtube.com/watch?v=${doc.id}`,
-            });
+                channelName: data.channelName || null,
+                summary: data.analysis?.summary || "요약 없음",
+            };
+            console.log("Processed video object (page.tsx):", video);
+            videos.push(video);
         });
         return videos;
     } catch (err) {
