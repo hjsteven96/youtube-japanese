@@ -72,12 +72,6 @@ export default function AuthHeader() {
                                 </Link>{" "}
                                 님!
                             </span>
-                            <button
-                                onClick={handleGoogleSignOut}
-                                className="bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors duration-200 text-sm"
-                            >
-                                로그아웃
-                            </button>
                         </>
                     ) : (
                         <button

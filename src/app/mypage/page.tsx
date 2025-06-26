@@ -1,7 +1,16 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { onAuthStateChanged, User, signOut } from "firebase/auth";
+import {
+    onAuthStateChanged,
+    User,
+    signOut,
+    getAuth,
+    EmailAuthProvider,
+    reauthenticateWithCredential,
+    GoogleAuthProvider,
+    reauthenticateWithPopup,
+} from "firebase/auth";
 import {
     collection,
     query,
@@ -24,6 +33,17 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { format } from "date-fns";
 import { Trash2, ExternalLink } from "lucide-react";
+import {
+    AlertDialog,
+    AlertDialogContent,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogCancel,
+    AlertDialogAction,
+} from "@/components/ui/alert-dialog";
+import { Input } from "@/components/ui/input";
 
 interface LearningHistoryItem {
     videoId: string;
@@ -49,6 +69,11 @@ const MyPage = () => {
     const [showAlertModal, setShowAlertModal] = useState(false);
     const [toastMessage, setToastMessage] = useState("");
     const [showToast, setShowToast] = useState(false);
+    const [showReauthModal, setShowReauthModal] = useState(false);
+    const [password, setPassword] = useState("");
+    const [authMethod, setAuthMethod] = useState<"email" | "google" | null>(
+        null
+    );
     const router = useRouter();
 
     useEffect(() => {
@@ -160,19 +185,49 @@ const MyPage = () => {
             await deleteDoc(doc(db, "users", user.uid));
 
             // 2. Firebase Authentication에서 사용자 삭제
-            await user.delete();
-
-            setToastMessage(
-                "회원 탈퇴 처리되어 모든 데이터를 안전하게 삭제하였습니다."
-            );
-            setShowToast(true);
-
-            router.push("/");
+            // user.delete() 대신 재인증 로직을 통해 처리
+            setShowAlertModal(false); // 기존 삭제 확인 모달 닫기
+            // Determine authentication method
+            const providerId = user.providerData[0]?.providerId;
+            if (providerId === "google.com") {
+                setAuthMethod("google");
+            } else if (
+                user.email &&
+                user.providerData.some((p) => p.providerId === "password")
+            ) {
+                setAuthMethod("email");
+            } else {
+                // Fallback for other providers or unexpected scenarios
+                setError(
+                    "지원하지 않는 인증 방식입니다. 고객 지원팀에 문의해주세요."
+                );
+                setLoading(false);
+                return;
+            }
+            setShowReauthModal(true); // 재인증 모달 열기
         } catch (error: any) {
             console.error("회원 탈퇴 중 오류:", error);
             // Firebase Error Codes for user deletion issues
             if (error.code === "auth/requires-recent-login") {
                 setError("보안상의 이유로 다시 로그인해야 탈퇴할 수 있습니다.");
+                setShowAlertModal(false); // 기존 삭제 확인 모달 닫기
+                // Determine authentication method again for error case
+                const providerId = user.providerData[0]?.providerId;
+                if (providerId === "google.com") {
+                    setAuthMethod("google");
+                } else if (
+                    user.email &&
+                    user.providerData.some((p) => p.providerId === "password")
+                ) {
+                    setAuthMethod("email");
+                } else {
+                    setError(
+                        "지원하지 않는 인증 방식입니다. 고객 지원팀에 문의해주세요."
+                    );
+                    setLoading(false);
+                    return;
+                }
+                setShowReauthModal(true); // 재인증 모달 열기
             } else {
                 setError(
                     "회원 탈퇴 중 오류가 발생했습니다. 다시 시도해주세요."
@@ -180,7 +235,73 @@ const MyPage = () => {
             }
         } finally {
             setLoading(false);
-            setShowAlertModal(false);
+            // 재인증 모달이 열린 경우에는 기존 모달을 닫지 않음
+            if (!showReauthModal) {
+                setShowAlertModal(false);
+            }
+        }
+    };
+
+    const handleReauthenticateAndDelete = async () => {
+        if (!user) return;
+
+        setLoading(true);
+        try {
+            if (authMethod === "email" && user.email) {
+                const credential = EmailAuthProvider.credential(
+                    user.email,
+                    password
+                );
+                await reauthenticateWithCredential(user, credential);
+            } else if (authMethod === "google") {
+                const provider = new GoogleAuthProvider();
+                await reauthenticateWithPopup(user, provider);
+            } else {
+                setError("알 수 없는 인증 방식입니다.");
+                setLoading(false);
+                setShowReauthModal(false);
+                return;
+            }
+
+            // 재인증 성공 후 계정 삭제 진행
+            await user.delete();
+
+            // Firestore 데이터 삭제 (기존 confirmDeleteAccount 로직 재활용)
+            const savedExpressionsRef = collection(
+                db,
+                `users/${user.uid}/savedInterpretations`
+            );
+            const savedExpressionsSnapshot = await getDocs(savedExpressionsRef);
+            const deleteSavedExpressionsPromises =
+                savedExpressionsSnapshot.docs.map((doc) => deleteDoc(doc.ref));
+            await Promise.all(deleteSavedExpressionsPromises);
+
+            const learningHistoryRef = collection(
+                db,
+                `users/${user.uid}/learningHistory`
+            );
+            const learningHistorySnapshot = await getDocs(learningHistoryRef);
+            const deleteLearningHistoryPromises =
+                learningHistorySnapshot.docs.map((doc) => deleteDoc(doc.ref));
+            await Promise.all(deleteLearningHistoryPromises);
+
+            await deleteDoc(doc(db, "users", user.uid));
+
+            // 회원 탈퇴 완료 페이지로 리다이렉트
+            router.push("/deleted");
+        } catch (error: any) {
+            console.error("재인증 및 회원 탈퇴 중 오류:", error);
+            if (error.code === "auth/wrong-password") {
+                setError("비밀번호가 올바르지 않습니다.");
+            } else if (error.code === "auth/popup-closed-by-user") {
+                setError("재인증 팝업이 닫혔습니다.");
+            } else {
+                setError("재인증에 실패했습니다. 다시 시도해주세요.");
+            }
+        } finally {
+            setLoading(false);
+            setShowReauthModal(false);
+            setPassword(""); // 비밀번호 초기화
         }
     };
 
@@ -462,6 +583,52 @@ const MyPage = () => {
                     onClose={() => setShowToast(false)}
                 />
             )}
+
+            <AlertDialog
+                open={showReauthModal}
+                onOpenChange={setShowReauthModal}
+            >
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>재인증 필요</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {authMethod === "email"
+                                ? "이 작업은 보안상의 이유로 다시 로그인이 필요합니다. 계속하려면 비밀번호를 입력해주세요."
+                                : authMethod === "google"
+                                ? "이 작업은 보안상의 이유로 구글 계정으로 다시 로그인해야 합니다."
+                                : "이 작업은 보안상의 이유로 다시 로그인이 필요합니다."}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    {authMethod === "email" && (
+                        <div className="py-4">
+                            <Input
+                                type="password"
+                                placeholder="비밀번호"
+                                value={password}
+                                onChange={(
+                                    e: React.ChangeEvent<HTMLInputElement>
+                                ) => setPassword(e.target.value)}
+                                className="w-full"
+                            />
+                        </div>
+                    )}
+                    <AlertDialogFooter>
+                        <AlertDialogCancel
+                            onClick={() => {
+                                setShowReauthModal(false);
+                                setAuthMethod(null);
+                            }}
+                        >
+                            취소
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleReauthenticateAndDelete}
+                        >
+                            {authMethod === "google" ? "구글로 재인증" : "확인"}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 };

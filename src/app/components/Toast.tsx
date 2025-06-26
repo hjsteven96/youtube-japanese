@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React from "react";
 
 interface ToastProps {
     message: string;
@@ -7,15 +7,6 @@ interface ToastProps {
 }
 
 const Toast: React.FC<ToastProps> = ({ message, isVisible, onClose }) => {
-    useEffect(() => {
-        if (isVisible) {
-            const timer = setTimeout(() => {
-                onClose();
-            }, 1300); // 1초 후 사라짐
-            return () => clearTimeout(timer);
-        }
-    }, [isVisible, onClose]);
-
     if (!isVisible) return null;
 
     return (

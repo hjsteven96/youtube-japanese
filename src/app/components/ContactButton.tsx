@@ -14,7 +14,7 @@ export default function ContactButton() {
         <div className="fixed bottom-6 right-6 z-50">
             <button
                 onClick={handleContactClick}
-                className="relative bg-gradient-to-r from-blue-300/80 to-white/30
+                className="relative bg-gradient-to-r from-blue-100/80 to-white/30
                            backdrop-blur-md border border-white/30
                            text-gray-700 font-semibold py-3 px-6 rounded-full
                            shadow-md transition-all duration-300
