@@ -25,7 +25,7 @@ export const metadata: Metadata = {
             `https://${process.env.VERCEL_URL}` ||
             "http://localhost:3000"
     ),
-    title: "Lingto와 함꼐 YouTube로 영어 공부하세요",
+    title: "Lingto와 함께 YouTube로 영어 공부하세요",
     description:
         "YouTube 영상을 AI로 분석하여 실전 영어를 학습하세요. 자막, 핵심 표현, AI 대화 연습까지!",
     keywords: [
