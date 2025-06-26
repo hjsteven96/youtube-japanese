@@ -173,15 +173,32 @@ export default function PricingPage() {
                                             {plan.maxVideoDuration / 60}분
                                         </span>
                                     </li>
-                                    {plan.aiConversation && (
+                                    <li className="flex items-start">
+                                        <CheckIcon className="flex-shrink-0 h-6 w-6 text-green-500" />
+                                        <span className="ml-3 text-gray-700">
+                                            1회당 대화 시간:{" "}
+                                            {plan.sessionTimeLimit / 60}분
+                                        </span>
+                                    </li>
+                                    <li className="flex items-start">
+                                        <CheckIcon className="flex-shrink-0 h-6 w-6 text-green-500" />
+                                        <span className="ml-3 text-gray-700">
+                                            월간 대화 시간:{" "}
+                                            {plan.monthlyTimeLimit / 60}분
+                                        </span>
+                                    </li>
+                                    {plan.aiConversation ? (
                                         <li className="flex items-start">
-                                            <CheckIcon
-                                                className={`flex-shrink-0 h-6 w-6 text-gray-300`}
-                                            />
-                                            <span
-                                                className={`ml-3 text-gray-400`}
-                                            >
-                                                AI 대화 연습 (준비 중)
+                                            <CheckIcon className="flex-shrink-0 h-6 w-6 text-green-500" />
+                                            <span className="ml-3 text-gray-700">
+                                                AI 대화 연습 (사용 가능)
+                                            </span>
+                                        </li>
+                                    ) : (
+                                        <li className="flex items-start">
+                                            <CheckIcon className="flex-shrink-0 h-6 w-6 text-gray-300" />
+                                            <span className="ml-3 text-gray-400">
+                                                AI 대화 연습 (제한)
                                             </span>
                                         </li>
                                     )}

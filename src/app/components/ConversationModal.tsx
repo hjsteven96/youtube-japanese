@@ -36,20 +36,31 @@ const ConversationModal = ({
 
     return (
         <div className="fixed inset-0 bg-gray-50 flex flex-col items-center justify-between p-6 z-50 transition-all duration-500">
-            {/* 남은 시간 표시 */}
-            {remainingTime !== null && (
-                <div className="absolute top-6 left-6 bg-gray-100 px-4 py-2 rounded-full shadow-sm">
-                    <p className="text-gray-700 text-sm font-light">
-                        남은 시간:{" "}
-                        <span className="font-medium text-blue-500">
-                            {formatTime(remainingTime)}
-                        </span>
-                    </p>
-                </div>
-            )}
+            {/* --- 수정된 부분 시작 --- */}
+            {/* 최상단 헤더 (타이틀과 남은 시간) */}
+            <div className="absolute top-6 left-0 right-0 flex flex-col items-center gap-2 z-20">
+                {/* 로고 및 제목 */}
+                <h1 className="text-xl font-semibold text-gray-700">
+                    <span className="font-bold text-blue-500">Ling:to</span> AI
+                    대화
+                </h1>
 
-            {/* 메인 콘텐츠 영역 */}
-            <div className="w-full max-w-4xl text-center flex-grow flex flex-col justify-center overflow-y-auto pt-20 pb-10 relative z-10">
+                {/* 남은 시간 표시 */}
+                {remainingTime !== null && (
+                    <div className="bg-gray-100 px-4 py-2 rounded-full shadow-sm">
+                        <p className="text-gray-700 text-sm font-light">
+                            남은 시간:{" "}
+                            <span className="font-medium text-blue-500">
+                                {formatTime(remainingTime)}
+                            </span>
+                        </p>
+                    </div>
+                )}
+            </div>
+            {/* --- 수정된 부분 끝 --- */}
+
+            {/* 메인 콘텐츠 영역 (상단 패딩 조정) */}
+            <div className="w-full max-w-4xl text-center flex-grow flex flex-col justify-center overflow-y-auto pt-32 pb-10 relative z-10">
                 <div className="bg-white rounded-3xl p-8 md:p-12 shadow-lg border border-gray-200">
                     <p className="text-gray-800 text-xl md:text-2xl font-light mb-8 leading-relaxed">
                         {selectedQuestion || "자유롭게 대화를 시작해 보세요."}
