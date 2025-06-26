@@ -1,69 +1,18 @@
 // src/app/components/TrendingVideos.tsx
-"use client";
 
-import { useState, useEffect } from "react";
-import { db } from "@/lib/firebase";
-import { collection, query, orderBy, limit, getDocs } from "firebase/firestore";
-import RecentVideoItem from "./RecentVideoItem"; // 기존 컴포넌트 재활용!
+// 1. "use client" 선언은 더 이상 필요 없으므로 제거하거나 그대로 두어도 괜찮습니다.
+//    이 컴포넌트는 더 이상 자체적인 상태(State)나 훅(Hook)을 사용하지 않기 때문입니다.
 
-// Firestore에 저장된 영상 정보 타입
-interface VideoInfo {
-    url: string;
-    videoId: string;
-    title: string;
-    duration: number; // 초 단위
-}
+// 2. 기존의 useState, useEffect, db 관련 import는 모두 제거합니다.
+import RecentVideoItem from "./RecentVideoItem";
+import { VideoInfo } from "../page"; // page.tsx에서 export한 VideoInfo 타입을 가져옵니다.
 
-export default function TrendingVideos() {
-    const [recommendedVideos, setRecommendedVideos] = useState<VideoInfo[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
+// 3. 컴포넌트의 인자(props)로 videos를 받도록 수정합니다.
+export default function TrendingVideos({ videos }: { videos: VideoInfo[] }) {
+    // 4. 로딩이나 에러 상태가 없어졌으므로 관련 로직을 제거합니다.
 
-    useEffect(() => {
-        const fetchRecommendedVideos = async () => {
-            try {
-                // 'recommendedVideos' 컬렉션에서 timestamp를 기준으로 최신순 4개를 가져옵니다.
-                // 이 컬렉션은 미리 생성되어 있고, timestamp 필드를 가지고 있다고 가정합니다.
-                // 실제 서비스에서는 admin SDK 등을 통해 미리 '추천 영상' 데이터를 넣어두어야 합니다.
-                const q = query(
-                    collection(db, "videoAnalyses"), // 예시 컬렉션 이름: "videos" (실제 데이터에 맞게 변경 필요)
-                    orderBy("timestamp", "desc"), // 최신순 정렬
-                    limit(4) // 4개만 가져오기
-                );
-                const querySnapshot = await getDocs(q);
-
-                const videos: VideoInfo[] = [];
-                querySnapshot.forEach((doc) => {
-                    const data = doc.data();
-                    videos.push({
-                        url: data.youtubeUrl || "", // Firestore 필드명에 따라 조정
-                        videoId: doc.id,
-                        title: data.youtubeTitle || data.title || "제목 없음", // Firestore 필드명에 따라 조정
-                        duration: data.duration || 0,
-                    });
-                });
-                setRecommendedVideos(videos);
-            } catch (err) {
-                console.error("Error fetching recommended videos:", err);
-                setError("추천 동영상 목록을 불러오는 데 실패했습니다.");
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchRecommendedVideos();
-    }, []);
-
-    if (error) {
-        return (
-            <div className="mt-8 w-full text-center text-red-500">
-                ⚠️ {error}
-            </div>
-        );
-    }
-
-    // 추천 동영상이 하나도 없을 경우 아무것도 표시하지 않음
-    if (recommendedVideos.length === 0) {
+    // 부모로부터 받은 데이터가 없으면 아무것도 렌더링하지 않습니다.
+    if (!videos || videos.length === 0) {
         return null;
     }
 
@@ -73,7 +22,8 @@ export default function TrendingVideos() {
                 ✨ 추천 동영상
             </h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                {recommendedVideos.map((video) => (
+                {/* 5. props로 받은 videos 배열을 사용해 목록을 렌더링합니다. */}
+                {videos.map((video) => (
                     <RecentVideoItem
                         key={video.videoId}
                         videoId={video.videoId}

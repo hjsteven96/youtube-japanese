@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect } from "react";
 import RecentVideoItem from "./RecentVideoItem";
 import { db, auth } from "@/lib/firebase"; // Firebase 임포트

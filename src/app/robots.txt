@@ -1,0 +1,17 @@
+# src/app/robots.txt
+
+User-agent: *
+Allow: /
+
+# Googlebot-Image를 포함한 모든 크롤러에게 모든 이미지 접근 허용
+User-agent: Googlebot-Image
+Allow: /
+
+# 모든 크롤러가 사이트의 모든 부분에 접근하는 것을 허용
+User-agent: *
+Allow: /
+Disallow: /api/ # API 경로는 크롤링할 필요 없음
+
+# 사이트맵 위치 명시
+Sitemap: https://your-domain.com/sitemap.xml 
+# ↑↑↑ 배포된 실제 도메인으로 변경해주세요. 예: https://ling-to.com/sitemap.xml
