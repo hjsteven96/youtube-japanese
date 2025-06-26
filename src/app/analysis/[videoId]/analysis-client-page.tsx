@@ -71,8 +71,9 @@ function AnalysisPageComponent({
     const [user, setUser] = useState<User | null>(null);
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [authInitialized, setAuthInitialized] = useState(false);
+    const [remainingTime, setRemainingTime] = useState<number | null>(null);
+    const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-    // [수정] State 초기화는 initialAnalysisData를 사용하되, 로딩 상태를 명확히 관리
     const [analysisData, setAnalysisData] = useState<GeminiResponseData | null>(
         null
     );
@@ -80,7 +81,6 @@ function AnalysisPageComponent({
     const [isAnalysisLoading, setIsAnalysisLoading] = useState(true);
     const [error, setError] = useState("");
 
-    // 나머지 state는 기존과 동일
     const [isRedirecting, setIsRedirecting] = useState(false);
     const [showToast, setShowToast] = useState(false);
     const [toastMessage, setToastMessage] = useState("");
@@ -106,9 +106,7 @@ function AnalysisPageComponent({
     const [loopStartTime, setLoopStartTime] = useState<number | null>(null);
     const [loopEndTime, setLoopEndTime] = useState<number | null>(null);
 
-    const canUseAIConversation = userProfile
-        ? PLANS[userProfile.plan].aiConversation
-        : false;
+    const plan = userProfile ? PLANS[userProfile.plan] : PLANS.free;
 
     const {
         isRecording,
@@ -120,22 +118,80 @@ function AnalysisPageComponent({
         transcript: analysisData?.transcript_text || "",
         geminiAnalysis: analysisData?.analysis ?? null,
         setError,
+        setActiveTab: setActiveTab,
+        videoId: videoId,
+        user: user,
+        sessionTimeLimit: plan.sessionTimeLimit, // ★ 수정: 분을 초로 변환
         onConversationStart: () => {
-            if (!canUseAIConversation) {
+            if (!userProfile) return false;
+
+            const monthlyLimit = plan.monthlyTimeLimit; // ★ 수정: 분을 초로 변환
+            const monthlyUsed = userProfile.usage.monthlyConversationUsed || 0;
+
+            if (monthlyUsed >= monthlyLimit) {
+                setToastMessage("이번 달 AI 대화 시간을 모두 사용했어요.");
+                setShowToast(true);
+                return false;
+            }
+
+            if (!plan.aiConversation) {
                 setToastMessage(
                     "AI 대화는 Plus 등급 이상부터 사용 가능합니다."
                 );
                 setShowToast(true);
-                return;
+                return false;
             }
+
             setIsConversationModeActive(true);
+            const sessionLimitInSeconds = plan.sessionTimeLimit; // ★ 수정: 분을 초로 변환
+            setRemainingTime(sessionLimitInSeconds);
+
+            countdownTimerRef.current = setInterval(() => {
+                setRemainingTime((prev) =>
+                    prev !== null && prev > 0 ? prev - 1 : 0
+                );
+            }, 1000);
+
+            return true;
         },
-        setActiveTab: setActiveTab,
-        videoId: videoId,
-        user: user,
+        onConversationEnd: async (durationInSeconds) => {
+            setIsConversationModeActive(false);
+
+            if (countdownTimerRef.current) {
+                clearInterval(countdownTimerRef.current);
+            }
+            setRemainingTime(null);
+
+            if (user && durationInSeconds > 0) {
+                const userDocRef = doc(db, "users", user.uid);
+                await updateDoc(userDocRef, {
+                    "usage.monthlyConversationUsed":
+                        increment(durationInSeconds),
+                });
+
+                setUserProfile((prev) =>
+                    prev
+                        ? {
+                              ...prev,
+                              usage: {
+                                  ...prev.usage,
+                                  monthlyConversationUsed:
+                                      (prev.usage.monthlyConversationUsed ||
+                                          0) + durationInSeconds,
+                              },
+                          }
+                        : null
+                );
+
+                const sessionLimitInSeconds = plan.sessionTimeLimit ; // ★ 수정: 분을 초로 변환
+                if (durationInSeconds >= sessionLimitInSeconds - 1) {
+                    setToastMessage("대화 시간이 종료되었습니다.");
+                    setShowToast(true);
+                }
+            }
+        },
     });
 
-    // [유지] 사용자 인증 상태 관리
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             setUser(currentUser);
@@ -150,12 +206,10 @@ function AnalysisPageComponent({
         return () => unsubscribe();
     }, []);
 
-    // [수정] 데이터 로딩 로직 전체 개편 (캐시 우선)
     useEffect(() => {
         let isMounted = true;
 
         const fetchAnalysisData = async () => {
-            // 1순위: 서버에서 전달된 캐시 데이터(initialAnalysisData)가 있으면 사용
             if (initialAnalysisData) {
                 if (isMounted) {
                     setAnalysisData(processTranscript(initialAnalysisData));
@@ -165,7 +219,6 @@ function AnalysisPageComponent({
                 return;
             }
 
-            // 필수 조건 (로그인 등) 확인
             if (!videoId || !authInitialized) return;
             if (!user || !userProfile) {
                 if (authInitialized) {
@@ -182,7 +235,6 @@ function AnalysisPageComponent({
             setError("");
 
             try {
-                // 2순위: 클라이언트에서 Firestore 캐시를 직접 확인
                 const docRef = doc(db, "videoAnalyses", videoId);
                 const docSnap = await getDoc(docRef);
 
@@ -194,19 +246,21 @@ function AnalysisPageComponent({
                             )
                         );
                     }
-                    return; // 캐시 데이터 사용 후 함수 종료
+                    // ★ 수정: 로딩 상태를 여기서 false로 설정해야 캐시 데이터 사용 시에도 화면이 제대로 표시됨
+                    setIsTranscriptLoading(false);
+                    setIsAnalysisLoading(false);
+                    return;
                 }
 
-                // 3순위: 캐시가 없으면 새로운 분석 시작
-                // 사용량 및 영상 길이 제한 확인
-                const plan = PLANS[userProfile.plan];
+                const currentPlan = PLANS[userProfile.plan];
                 const today = new Date().toISOString().split("T")[0];
                 if (
                     userProfile.usage.lastAnalysisDate === today &&
-                    userProfile.usage.analysisCount >= plan.dailyAnalysisLimit
+                    userProfile.usage.analysisCount >=
+                        currentPlan.dailyAnalysisLimit
                 ) {
                     throw new Error(
-                        `오늘의 분석 횟수(${userProfile.usage.analysisCount}/${plan.dailyAnalysisLimit}회)를 모두 사용하셨습니다.`
+                        `오늘의 분석 횟수(${userProfile.usage.analysisCount}/${currentPlan.dailyAnalysisLimit}회)를 모두 사용하셨습니다.`
                     );
                 }
 
@@ -219,10 +273,10 @@ function AnalysisPageComponent({
                     );
                 const metaData = await metaRes.json();
 
-                if (metaData.duration > plan.maxVideoDuration) {
+                if (metaData.duration > currentPlan.maxVideoDuration) {
                     throw new Error(
-                        `${plan.name} 등급은 ${Math.floor(
-                            plan.maxVideoDuration / 60
+                        `${currentPlan.name} 등급은 ${Math.floor(
+                            currentPlan.maxVideoDuration / 60
                         )}분 이하 영상만 분석 가능합니다.`
                     );
                 }
@@ -232,8 +286,20 @@ function AnalysisPageComponent({
                     "usage.analysisCount": increment(1),
                     "usage.lastAnalysisDate": today,
                 });
+                // ★ 수정: 로컬 상태도 업데이트하여 즉시 반영
+                setUserProfile((prev) =>
+                    prev
+                        ? {
+                              ...prev,
+                              usage: {
+                                  ...prev.usage,
+                                  analysisCount: prev.usage.analysisCount + 1,
+                                  lastAnalysisDate: today,
+                              },
+                          }
+                        : null
+                );
 
-                // 1단계 API 호출: 자막 생성
                 const transcriptRes = await fetch("/api/generate-transcript", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -246,6 +312,19 @@ function AnalysisPageComponent({
                     await updateDoc(userDocRef, {
                         "usage.analysisCount": increment(-1),
                     });
+                    // ★ 수정: 로컬 상태도 롤백
+                    setUserProfile((prev) =>
+                        prev
+                            ? {
+                                  ...prev,
+                                  usage: {
+                                      ...prev.usage,
+                                      analysisCount:
+                                          prev.usage.analysisCount - 1,
+                                  },
+                              }
+                            : null
+                    );
                     throw new Error(
                         (await transcriptRes.json()).error ||
                             "자막 생성에 실패했습니다."
@@ -265,10 +344,9 @@ function AnalysisPageComponent({
                         },
                         ...metaData,
                     });
-                    setIsTranscriptLoading(false); // 자막 로딩 완료
+                    setIsTranscriptLoading(false);
                 }
 
-                // 2단계 API 호출: 자막 분석
                 const analysisRes = await fetch("/api/analyze-transcript", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -282,14 +360,12 @@ function AnalysisPageComponent({
                 const { analysis } = await analysisRes.json();
 
                 if (isMounted) {
-                    // 최종 데이터 완성 및 캐시 저장
                     setAnalysisData((currentData) => {
                         const finalData = { ...currentData!, analysis };
                         setDoc(doc(db, "videoAnalyses", videoId), {
                             ...finalData,
                             timestamp: new Date().toISOString(),
                         });
-                        // 로그 저장은 여기서도 가능
                         return finalData;
                     });
                 }
@@ -309,9 +385,8 @@ function AnalysisPageComponent({
         return () => {
             isMounted = false;
         };
-    }, [videoId, user, userProfile, authInitialized, router]);
+    }, [videoId, user, userProfile, authInitialized, router, initialAnalysisData]);
 
-    // 저장된 표현 불러오기 (변경 없음)
     useEffect(() => {
         if (!user || !videoId || !analysisData) {
             setSavedExpressions([]);
@@ -333,7 +408,6 @@ function AnalysisPageComponent({
         fetchSavedExpressions();
     }, [user, videoId, analysisData]);
 
-    // 구간 반복 로직 (변경 없음)
     useEffect(() => {
         if (
             isLooping &&
@@ -347,7 +421,14 @@ function AnalysisPageComponent({
         }
     }, [currentTime, isLooping, loopStartTime, loopEndTime]);
 
-    // --- 핸들러 함수들 (기존과 거의 동일) ---
+    useEffect(() => {
+        return () => {
+            if (countdownTimerRef.current) {
+                clearInterval(countdownTimerRef.current);
+            }
+        };
+    }, []);
+
     const handleAddExpression = async (
         newExpressionData: Omit<SavedExpression, "id">
     ) => {
@@ -446,8 +527,7 @@ function AnalysisPageComponent({
         setPlaybackRate(rate);
     };
 
-    // --- 렌더링 로직 ---
-    const isLoading = isTranscriptLoading || !analysisData; // [수정] 전체 로딩 상태를 명확히 정의
+    const isLoading = isTranscriptLoading || !analysisData;
 
     if (isRedirecting) {
         return (
@@ -530,12 +610,12 @@ function AnalysisPageComponent({
                 <ConversationModal
                     isOpen={isConversationModeActive}
                     onClose={() => {
-                        setIsConversationModeActive(false);
                         handleStopConversation("modal_close");
                     }}
                     isRecording={isRecording}
                     isPlayingAudio={isPlayingAudio}
                     selectedQuestion={selectedQuestion}
+                    remainingTime={remainingTime}
                 />
 
                 <Toast

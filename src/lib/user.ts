@@ -1,4 +1,4 @@
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc, setDoc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { User } from "firebase/auth";
 import { db } from "./firebase";
 import { UserProfile } from "./plans";
@@ -10,6 +10,7 @@ import { UserProfile } from "./plans";
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
     const userDocRef = doc(db, "users", uid);
     const userDocSnap = await getDoc(userDocRef);
+    
     if (userDocSnap.exists()) {
         return userDocSnap.data() as UserProfile;
     }
@@ -20,43 +21,59 @@ export async function getUserProfile(uid: string): Promise<UserProfile | null> {
  * 신규 사용자를 위한 프로필을 생성합니다.
  * 이미 프로필이 있다면 생성하지 않습니다.
  */
+
 export async function createUserProfile(user: User): Promise<UserProfile> {
-    const existingProfile = await getUserProfile(user.uid);
-    if (existingProfile) {
-        // 날짜가 바뀌었는지 확인하고 사용량을 초기화하는 로직을 추가할 수 있습니다.
+    const userDocRef = doc(db, "users", user.uid);
+    const userDocSnap = await getDoc(userDocRef);
+
+    // [수정] 기존 프로필이 있을 때의 로직 강화
+    if (userDocSnap.exists()) {
+        const profile = userDocSnap.data() as UserProfile;
+        const updates: { [key: string]: any } = {};
+
+        // 1. 일일 분석 횟수 리셋
         const today = new Date().toISOString().split("T")[0];
-        if (existingProfile.usage?.lastAnalysisDate !== today) {
-            const userDocRef = doc(db, "users", user.uid);
-            await setDoc(
-                userDocRef,
-                {
-                    usage: {
-                        analysisCount: 0,
-                        lastAnalysisDate: today,
-                    },
-                },
-                { merge: true }
-            );
-            // 업데이트된 프로필을 반환하기 위해 existingProfile 객체를 수정합니다.
-            existingProfile.usage.analysisCount = 0;
-            existingProfile.usage.lastAnalysisDate = today;
+        if (profile.usage?.lastAnalysisDate !== today) {
+            updates["usage.analysisCount"] = 0;
+            updates["usage.lastAnalysisDate"] = today;
+            profile.usage.analysisCount = 0; // 즉각적인 UI 반영을 위해
+            profile.usage.lastAnalysisDate = today;
         }
-        return existingProfile;
+
+        // 2. [추가] 월간 대화 사용량 리셋
+        const currentMonth = new Date().toISOString().slice(0, 7); // "YYYY-MM"
+        if (profile.usage?.conversationUsageLastReset !== currentMonth) {
+            updates["usage.monthlyConversationUsed"] = 0;
+            updates["usage.conversationUsageLastReset"] = currentMonth;
+            profile.usage.monthlyConversationUsed = 0; // 즉각적인 UI 반영을 위해
+            profile.usage.conversationUsageLastReset = currentMonth;
+        }
+
+        // 업데이트가 필요할 경우에만 Firestore에 쓰기 작업 수행
+        if (Object.keys(updates).length > 0) {
+            await updateDoc(userDocRef, updates);
+        }
+
+        return profile;
     }
 
+    // [수정] 신규 사용자 프로필 생성 로직
     const newUserProfile: UserProfile = {
         uid: user.uid,
         email: user.email,
         displayName: user.displayName,
-        plan: "free", // 모든 신규 사용자는 'free' 플랜으로 시작
+        plan: "free",
         createdAt: serverTimestamp(),
         usage: {
             analysisCount: 0,
-            lastAnalysisDate: new Date().toISOString().split("T")[0], // YYYY-MM-DD
+            lastAnalysisDate: new Date().toISOString().split("T")[0],
+            // [추가] 신규 사용자의 대화 시간 초기값
+            monthlyConversationUsed: 0,
+            conversationUsageLastReset: new Date().toISOString().slice(0, 7), // "YYYY-MM"
         },
     };
 
-    const userDocRef = doc(db, "users", user.uid);
+ 
     await setDoc(userDocRef, newUserProfile);
     return newUserProfile;
 }

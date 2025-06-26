@@ -155,7 +155,7 @@ const AnalysisTabs = ({
             <div className="flex space-x-2 mb-4 border-b-2 border-gray-100">
                 <TabButton tabName="transcript" label="자막" />
                 <TabButton tabName="analysis" label="주요 표현" />
-                {/* <TabButton tabName="questions" label="AI 대화" /> */}
+                <TabButton tabName="questions" label="AI 대화" />
             </div>
             <div className="flex-1 overflow-y-auto rounded-b-2xl hide-scrollbar">
                 {/* [수정] '주요 표현' 탭 로딩 상태 처리 */}

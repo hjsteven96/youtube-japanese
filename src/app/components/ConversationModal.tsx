@@ -8,7 +8,16 @@ interface ConversationModalProps {
     isRecording: boolean;
     isPlayingAudio: boolean;
     selectedQuestion: string | null;
+    remainingTime: number | null; // 이 줄을 추가하세요.
 }
+
+// 초를 분:초 형식으로 변환하는 유틸리티 함수
+const formatTime = (seconds: number) => {
+    if (seconds < 0) seconds = 0; // 남은 시간이 음수가 되지 않도록
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+};
 
 const ConversationModal = ({
     isOpen,
@@ -16,6 +25,7 @@ const ConversationModal = ({
     isRecording,
     isPlayingAudio,
     selectedQuestion,
+    remainingTime, // prop을 받습니다.
 }: ConversationModalProps) => {
     if (!isOpen) return null;
 
