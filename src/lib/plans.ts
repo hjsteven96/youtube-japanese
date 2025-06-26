@@ -7,19 +7,19 @@ export const PLANS = {
         maxVideoDuration: 600, // 10분 (600초)
         aiConversation: true, // AI 대화 기능 제한
         price: "무료",
-        sessionTimeLimit: 60, // 5분
-        monthlyTimeLimit: 300, // 30분
-        maxSavedWords: 2,
+        sessionTimeLimit: 120, // 2분
+        monthlyTimeLimit: 1200, // 20분
+        maxSavedWords: 50,
     },
     plus: {
         name: "Plus 사용자",
         dailyAnalysisLimit: 5, // 하루 분석 20회 제한
-        maxVideoDuration: 1200, // 30분 (1800초)
+        maxVideoDuration: 1200, // 20분 (1800초)
         aiConversation: true, // AI 대화 기능 사용 가능
         price: "₩0",
         sessionTimeLimit: 300, // 5분
-        monthlyTimeLimit: 3000, // 30분
-        maxSavedWords: 3,
+        monthlyTimeLimit: 1800, // 30분
+        maxSavedWords: 500,
     },
     pro: {
         name: "Pro 사용자",
@@ -27,9 +27,9 @@ export const PLANS = {
         maxVideoDuration: 3600, // 2시간 (7200초)
         aiConversation: true, // AI 대화 기능 사용 가능
         price: "₩19,900",
-        sessionTimeLimit: 600, // 5분
-        monthlyTimeLimit: 12000, // 30분
-        maxSavedWords: 5,
+        sessionTimeLimit: 600, // 10분
+        monthlyTimeLimit: 72000, // 120분
+        maxSavedWords: 1000,
     },
 };
 
