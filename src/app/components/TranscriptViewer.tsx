@@ -493,7 +493,7 @@ const TranscriptViewer = ({
                         <p>AI가 해석 중...</p>
                     ) : interpretationResult ? (
                         <div className="flex flex-col space-y-2">
-                            <p className="font-bold">AI 해석:</p>
+                            <p className="font-bold">AI 해석:</p>v
                             <p>{interpretationResult}</p>
                             <div className="flex justify-end space-x-2 mt-2">
                                 {user && (
