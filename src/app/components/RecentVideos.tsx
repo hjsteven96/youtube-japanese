@@ -21,6 +21,7 @@ export default function RecentVideos() {
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
             setUser(currentUser);
+            console.log("[RecentVideos] Auth state changed, currentUser:", currentUser?.uid);
             if (currentUser) {
                 const fetchRecentVideos = async () => {
                     setLoading(true);
@@ -33,10 +34,13 @@ export default function RecentVideos() {
                             orderBy("timestamp", "desc"),
                             limit(4)
                         );
+                        console.log("[RecentVideos] Fetching learning history for user:", currentUser.uid);
                         const querySnapshot = await getDocs(q);
+                        console.log("[RecentVideos] Fetched documents count:", querySnapshot.docs.length);
                         const videos: VideoInfo[] = [];
                         querySnapshot.forEach((doc) => {
                             const data = doc.data();
+                            console.log("[RecentVideos] Raw Firestore data for doc.id", doc.id, ":", data);
                             // Firestore에서 가져온 데이터 형식에 맞춰 VideoInfo 구성
                             videos.push({
                                 url: data.youtubeUrl,
@@ -44,8 +48,10 @@ export default function RecentVideos() {
                                 title: data.title || "제목 없음", // Firestore에 title 필드 추가 필요
                                 duration: data.duration || 0, // Firestore에 duration 필드 추가 필요
                             });
+                            console.log("[RecentVideos] Mapped video data:", videos[videos.length - 1]);
                         });
                         setRecentVideos(videos);
+                        console.log("[RecentVideos] Final recentVideos state:", videos);
                     } catch (error) {
                         console.error("Error fetching recent videos:", error);
                     }
@@ -53,6 +59,7 @@ export default function RecentVideos() {
                 };
                 fetchRecentVideos();
             } else {
+                console.log("[RecentVideos] User logged out, clearing recent videos.");
                 setRecentVideos([]); // 로그아웃 상태면 목록 비우기
                 setLoading(false);
             }

@@ -3,13 +3,14 @@
 // 1. 서버-사이드 로직과 컴포넌트들을 임포트합니다.
 import { db } from "@/lib/firebase";
 import { collection, query, orderBy, limit, getDocs } from "firebase/firestore";
+import { unstable_noStore as noStore } from 'next/cache';
 
 import AuthHeader from "./components/AuthHeader";
 import RecentVideos from "./components/RecentVideos";
 import TrendingVideos from "./components/TrendingVideos";
 import HomeClientContent from "./HomeClientContent";
 import ContactButton from "./components/ContactButton";
-
+import { AuroraText } from "@/components/magicui/aurora-text";
 // 2. 데이터 타입을 정의하고 다른 곳에서 쓸 수 있도록 export합니다.
 export interface VideoInfo {
     videoId: string;
@@ -22,6 +23,7 @@ export interface VideoInfo {
 
 // 3. 서버에서 직접 데이터를 가져오는 비동기 함수입니다.
 async function getTrendingVideos(): Promise<VideoInfo[]> {
+    noStore(); // 캐싱 비활성화
     try {
         const q = query(
             collection(db, "videoAnalyses"),
@@ -66,7 +68,8 @@ export default async function Home() {
                 <div className="w-full max-w-2xl pt-10">
                     <header className="text-center mb-8">
                         <h1 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-1 flex items-center justify-center md:leading-loose">
-                            Ling:to
+
+                            <AuroraText>Ling:to</AuroraText>
                             <span className="ml-2 text-base font-normal text-gray-400 opacity-80">
                                 Beta
                             </span>

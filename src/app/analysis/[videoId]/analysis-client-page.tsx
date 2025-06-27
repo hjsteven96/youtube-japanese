@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useRef, useEffect, Suspense } from "react";
+import { useState, useRef, useEffect, Suspense, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ReactPlayer from "react-player";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth, db } from "../../../lib/firebase";
+import { getYoutubeVideoDetails } from "../../../lib/youtube";
 import AnalysisHeader from "../../components/AnalysisHeader";
 import {
     doc,
@@ -19,6 +20,7 @@ import {
     orderBy,
     updateDoc,
     increment,
+    serverTimestamp,
 } from "firebase/firestore";
 
 import LoadingAnimation from "../../components/LoadingAnimation";
@@ -106,6 +108,41 @@ function AnalysisPageComponent({
     const [loopEndTime, setLoopEndTime] = useState<number | null>(null);
 
     const plan = userProfile ? PLANS[userProfile.plan] : PLANS.free;
+
+    const saveLearningHistory = useCallback(async (
+        currentUser: User,
+        data: GeminiResponseData,
+        currentVideoId: string
+    ) => {
+        try {
+            const historyDocRef = doc(db, `users/${currentUser.uid}/learningHistory`, currentVideoId);
+            const youtubeUrl = `https://www.youtube.com/watch?v=${currentVideoId}`;
+            const title = data.youtubeTitle || "제목 없음";
+            const duration = data.duration || 0;
+            const thumbnailUrl = data.thumbnailUrl || null;
+
+            console.log("[SAVE_LEARNING_HISTORY] Saving learning history:", {
+                videoId: currentVideoId,
+                youtubeUrl,
+                title,
+                duration,
+                thumbnailUrl,
+                userUid: currentUser.uid,
+            });
+
+            await setDoc(historyDocRef, {
+                youtubeUrl,
+                title,
+                duration,
+                timestamp: serverTimestamp(),
+                lastPlayedTime: 0,
+                thumbnailUrl,
+            }, { merge: true });
+            console.log("[SAVE_LEARNING_HISTORY] Learning history saved successfully.");
+        } catch (error) {
+            console.error("[SAVE_LEARNING_HISTORY_ERROR] Failed to save learning history:", error);
+        }
+    }, []);
 
     const {
         isRecording,
@@ -214,6 +251,9 @@ function AnalysisPageComponent({
                     setAnalysisData(processTranscript(initialAnalysisData));
                     setIsTranscriptLoading(false);
                     setIsAnalysisLoading(false);
+                    if (user) {
+                        await saveLearningHistory(user, initialAnalysisData, videoId);
+                    }
                 }
                 return;
             }
@@ -238,169 +278,111 @@ function AnalysisPageComponent({
                 const docSnap = await getDoc(docRef);
 
                 if (docSnap.exists()) {
+                    const cachedData = docSnap.data() as GeminiResponseData;
                     if (isMounted) {
-                        setAnalysisData(
-                            processTranscript(
-                                docSnap.data() as GeminiResponseData
-                            )
-                        );
+                        setAnalysisData(processTranscript(cachedData));
                     }
-                    // ★ 수정: 로딩 상태를 여기서 false로 설정해야 캐시 데이터 사용 시에도 화면이 제대로 표시됨
                     setIsTranscriptLoading(false);
                     setIsAnalysisLoading(false);
-                    return;
-                }
-
-                const currentPlan = PLANS[userProfile.plan];
-                const today = new Date().toISOString().split("T")[0];
-                if (
-                    userProfile.usage.lastAnalysisDate === today &&
-                    userProfile.usage.analysisCount >=
-                        currentPlan.dailyAnalysisLimit
-                ) {
-                    throw new Error(
-                        `오늘의 분석 횟수(${userProfile.usage.analysisCount}/${currentPlan.dailyAnalysisLimit}회)를 모두 사용하셨습니다.`
-                    );
-                }
-
-                const metaRes = await fetch(
-                    `/api/youtube-data?videoId=${videoId}`
-                );
-                if (!metaRes.ok)
-                    throw new Error(
-                        (await metaRes.json()).error || "영상 정보 로딩 실패"
-                    );
-                const metaData = await metaRes.json();
-
-                if (metaData.duration > currentPlan.maxVideoDuration) {
-                    throw new Error(
-                        `${currentPlan.name} 등급은 ${Math.floor(
-                            currentPlan.maxVideoDuration / 60
-                        )}분 이하 영상만 분석 가능합니다.`
-                    );
-                }
-
-                const userDocRef = doc(db, "users", user.uid);
-                await updateDoc(userDocRef, {
-                    "usage.analysisCount": increment(1),
-                    "usage.lastAnalysisDate": today,
-                });
-                // ★ 수정: 로컬 상태도 업데이트하여 즉시 반영
-                setUserProfile((prev) =>
-                    prev
-                        ? {
-                              ...prev,
-                              usage: {
-                                  ...prev.usage,
-                                  analysisCount: prev.usage.analysisCount + 1,
-                                  lastAnalysisDate: today,
-                              },
-                          }
-                        : null
-                );
-
-                const transcriptRes = await fetch("/api/generate-transcript", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        youtubeUrl: `https://www.youtube.com/watch?v=${videoId}`,
-                    }),
-                });
-
-                if (!transcriptRes.ok) {
-                    await updateDoc(userDocRef, {
-                        "usage.analysisCount": increment(-1),
+                    if (user) {
+                        await saveLearningHistory(user, cachedData, videoId);
+                    }
+                } else {
+                    const response = await fetch("/api/generate-transcript", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({ youtubeUrl: `https://www.youtube.com/watch?v=${videoId}` }),
                     });
-                    // ★ 수정: 로컬 상태도 롤백
-                    setUserProfile((prev) =>
-                        prev
-                            ? {
-                                  ...prev,
-                                  usage: {
-                                      ...prev.usage,
-                                      analysisCount:
-                                          prev.usage.analysisCount - 1,
-                                  },
-                              }
-                            : null
-                    );
-                    throw new Error(
-                        (await transcriptRes.json()).error ||
-                            "자막 생성에 실패했습니다."
-                    );
-                }
 
-                const { transcript_text } = await transcriptRes.json();
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(`Failed to generate transcript: ${errorData.error}`);
+                    }
 
-                if (isMounted) {
-                    setAnalysisData({
-                        transcript_text,
+                    const data = await response.json();
+                    const youtubeDetails = await getYoutubeVideoDetails(videoId);
+
+                    const newAnalysisData: GeminiResponseData = {
+                        transcript_text: data.transcript_text,
                         analysis: {
-                            summary: "AI가 영상 내용을 분석하고 있어요...",
+                            summary: "",
                             keywords: [],
                             slang_expressions: [],
                             main_questions: [],
                         },
-                        ...metaData,
+                        youtubeTitle: youtubeDetails?.youtubeTitle || null,
+                        youtubeDescription: youtubeDetails?.youtubeDescription || null,
+                        thumbnailUrl: youtubeDetails?.thumbnailUrl || null,
+                        duration: youtubeDetails?.duration || null,
+                        channelName: youtubeDetails?.channelName || null,
+                    };
+
+                    if (isMounted) {
+                        setAnalysisData(processTranscript(newAnalysisData));
+                        setIsTranscriptLoading(false);
+                        if (user) {
+                            await saveLearningHistory(user, newAnalysisData, videoId);
+                        }
+                    }
+
+                    const analysisRes = await fetch("/api/analyze-transcript", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ transcript_text: data.transcript_text }),
                     });
-                    setIsTranscriptLoading(false);
-                }
 
-                const analysisRes = await fetch("/api/analyze-transcript", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ transcript_text }),
-                });
+                    if (!analysisRes.ok) {
+                        throw new Error("AI 내용 분석 중 오류가 발생했습니다.");
+                    }
 
-                if (!analysisRes.ok) {
-                    throw new Error("AI 내용 분석 중 오류가 발생했습니다.");
-                }
+                    const { analysis } = await analysisRes.json();
 
-                const { analysis } = await analysisRes.json();
+                    console.log("[ANALYSIS_CLIENT_PAGE] Received analysis data:", analysis);
+                    console.log("[ANALYSIS_CLIENT_PAGE] isAnalysisLoading before update:", isAnalysisLoading);
 
-                // ★ New: Log the received analysis data
-                console.log("[ANALYSIS_CLIENT_PAGE] Received analysis data:", analysis);
-                console.log("[ANALYSIS_CLIENT_PAGE] isAnalysisLoading before update:", isAnalysisLoading);
-
-                if (isMounted) {
-                    setAnalysisData((currentData) => {
-                        const finalData = { ...currentData!, analysis };
-                        setDoc(doc(db, "videoAnalyses", videoId), {
-                            ...finalData,
-                            thumbnailUrl: metaData.thumbnailUrl || null,
-                            duration: metaData.duration || null,
-                            channelName: metaData.channelName || null,
-                            timestamp: new Date().toISOString(),
+                    if (isMounted) {
+                        setAnalysisData((currentData) => {
+                            const finalData = { ...currentData!, analysis };
+                            setDoc(doc(db, "videoAnalyses", videoId), {
+                                ...finalData,
+                                thumbnailUrl: newAnalysisData.thumbnailUrl || null,
+                                duration: newAnalysisData.duration || null,
+                                channelName: newAnalysisData.channelName || null,
+                                timestamp: serverTimestamp(),
+                            });
+                            console.log("[ANALYSIS_CLIENT_PAGE] analysisData updated:", finalData);
+                            return finalData;
                         });
-                        console.log("[ANALYSIS_CLIENT_PAGE] analysisData updated:", finalData); // ★ New: Log updated analysisData
-                        return finalData;
-                    });
-                    setIsAnalysisLoading(false);
-                    console.log("[ANALYSIS_CLIENT_PAGE] isAnalysisLoading after update:", false); // ★ New: Log state after update
+                        setIsAnalysisLoading(false);
+                        console.log("[ANALYSIS_CLIENT_PAGE] isAnalysisLoading after update:", false);
+                    }
                 }
             } catch (err: any) {
                 if (isMounted) {
-                    setError(err.message || "알 수 없는 오류가 발생했습니다.");
+                    console.error("Error in fetchAnalysisData:", err);
+                    setError(err.message || "Failed to load analysis.");
                     setIsTranscriptLoading(false);
-                    setIsAnalysisLoading(false); // Ensure all loading flags are false on error
-                    console.error("[ANALYSIS_CLIENT_PAGE_ERROR] Error in fetchAnalysisData:", err); // ★ New: Log errors more clearly
+                    setIsAnalysisLoading(false);
+                }
+            } finally {
+                if (isMounted) {
+                    if (isAnalysisLoading) {
+                        setIsAnalysisLoading(false);
+                    }
                 }
             }
         };
 
-        fetchAnalysisData();
+        if (authInitialized) {
+            fetchAnalysisData();
+        }
 
         return () => {
             isMounted = false;
         };
-    }, [
-        videoId,
-        user,
-        // userProfile,
-        authInitialized,
-        router,
-        initialAnalysisData,
-    ]);
+    }, [videoId, authInitialized, user, userProfile, initialAnalysisData, router, saveLearningHistory]);
 
     useEffect(() => {
         if (!user || !videoId || !analysisData) {
@@ -544,7 +526,6 @@ function AnalysisPageComponent({
 
     const isLoading = isTranscriptLoading;
 
-    // [추가] Alert 모달 표시 함수
     const handleShowAlert = (config: {
         title: string;
         subtitle: string;

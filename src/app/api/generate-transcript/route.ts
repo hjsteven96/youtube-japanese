@@ -31,7 +31,11 @@ export async function POST(req: NextRequest) {
         const videoId = url.searchParams.get("v");
 
         if (!videoId) {
-            throw new Error("Invalid YouTube URL: video ID not found for external API.");
+            console.error("[GENERATE_TRANSCRIPT_API_ERROR] Invalid YouTube URL: video ID not found.", youtubeUrl);
+            return NextResponse.json(
+                { error: "Invalid YouTube URL: video ID not found." },
+                { status: 400 }
+            );
         }
 
         const externalApiUrl = `https://yotube-caption-production.up.railway.app/transcript?video_id=${videoId}`;

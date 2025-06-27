@@ -16,7 +16,7 @@ export const PLANS = {
         dailyAnalysisLimit: 5, // 하루 분석 20회 제한
         maxVideoDuration: 1800, // 20분 (1800초)
         aiConversation: true, // AI 대화 기능 사용 가능
-        price: "₩0",
+        price: "₩12,900",
         sessionTimeLimit: 600, // 5분
         monthlyTimeLimit: 1800, // 30분
         maxSavedWords: 200,
@@ -24,9 +24,9 @@ export const PLANS = {
     pro: {
         name: "Pro 사용자",
         dailyAnalysisLimit: 100, // 무제한
-        maxVideoDuration: 7200, // 2시간 (7200초)
+        maxVideoDuration: 60*60*3, // 2시간 (7200초)
         aiConversation: true, // AI 대화 기능 사용 가능
-        price: "₩19,900",
+        price: "₩29,900",
         sessionTimeLimit: 1200, // 10분
         monthlyTimeLimit: 75600, // 120분
         maxSavedWords: 1000,

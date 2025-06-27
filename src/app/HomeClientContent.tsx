@@ -202,38 +202,40 @@ export default function HomeClientContent() {
             )}
 
             {videoInfo && (
-                <div className="mt-8 animate-slide-up">
-                    <div className="relative w-full pt-[56.25%] rounded-xl overflow-hidden shadow-lg mb-4">
-                        <ReactPlayer
-                            url={videoInfo.url}
-                            controls={true}
-                            width="100%"
-                            height="100%"
-                            className="absolute inset-0"
-                        />
-                    </div>
-                    <h2 className="text-xl font-bold text-gray-800 mb-2">
-                        {videoInfo.title}
-                    </h2>
-                    <p className="text-gray-600 mb-4">
-                        영상 길이: {Math.floor(videoInfo.duration / 60)}분{" "}
-                        {Math.floor(videoInfo.duration % 60)}초
-                    </p>
+                <div className="max-w-xl mx-auto">
+                    <div className="mt-8 animate-slide-up">
+                        <div className="relative w-full pt-[56.25%] rounded-xl overflow-hidden shadow-lg mb-4">
+                            <ReactPlayer
+                                url={videoInfo.url}
+                                controls={true}
+                                width="100%"
+                                height="100%"
+                                className="absolute inset-0"
+                            />
+                        </div>
+                        <h2 className="text-xl font-bold text-gray-800 mb-2">
+                            {videoInfo.title}
+                        </h2>
+                        <p className="text-gray-600 mb-4">
+                            영상 길이: {Math.floor(videoInfo.duration / 60)}분{" "}
+                            {Math.floor(videoInfo.duration % 60)}초
+                        </p>
 
-                    <Link
-                        href={
-                            videoInfo ? `/analysis/${videoInfo.videoId}` : "#"
-                        }
-                        onClick={handleAnalysisClick}
-                        className={`block text-center w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-bold py-3 mb-8 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 ${
-                            buttonState.disabled
-                                ? "opacity-50 cursor-not-allowed"
-                                : ""
-                        }`}
-                        aria-disabled={buttonState.disabled}
-                    >
-                        {buttonState.text}
-                    </Link>
+                        <Link
+                            href={
+                                videoInfo ? `/analysis/${videoInfo.videoId}` : "#"
+                            }
+                            onClick={handleAnalysisClick}
+                            className={`block text-center w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-bold py-3 mb-8 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 ${
+                                buttonState.disabled
+                                    ? "opacity-50 cursor-not-allowed"
+                                    : ""
+                            }`}
+                            aria-disabled={buttonState.disabled}
+                        >
+                            {buttonState.text}
+                        </Link>
+                    </div>
                 </div>
             )}
 
