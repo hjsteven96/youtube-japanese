@@ -110,6 +110,10 @@ function AnalysisPageComponent({
 
     const plan = userProfile ? PLANS[userProfile.plan] : PLANS.free;
 
+    const handleCloseToast = useCallback(() => {
+        setShowToast(false);
+    }, []);
+
     const saveLearningHistory = useCallback(
         async (
             currentUser: User,
@@ -682,7 +686,7 @@ function AnalysisPageComponent({
                 <Toast
                     message={toastMessage}
                     isVisible={showToast}
-                    onClose={useCallback(() => setShowToast(false), [])}
+                    onClose={handleCloseToast}
                     duration={3000}
                 />
 
