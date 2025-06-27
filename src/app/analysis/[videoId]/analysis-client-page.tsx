@@ -5,7 +5,6 @@ import { useParams, useRouter } from "next/navigation";
 import ReactPlayer from "react-player";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth, db } from "../../../lib/firebase";
-import { getYoutubeVideoDetails } from "../../../lib/youtube";
 import AnalysisHeader from "../../components/AnalysisHeader";
 import {
     doc,
@@ -128,18 +127,6 @@ function AnalysisPageComponent({
                 const duration = data.duration || 0;
                 const thumbnailUrl = data.thumbnailUrl || null;
 
-                console.log(
-                    "[SAVE_LEARNING_HISTORY] Saving learning history:",
-                    {
-                        videoId: currentVideoId,
-                        youtubeUrl,
-                        title,
-                        duration,
-                        thumbnailUrl,
-                        userUid: currentUser.uid,
-                    }
-                );
-
                 await setDoc(
                     historyDocRef,
                     {
@@ -151,9 +138,6 @@ function AnalysisPageComponent({
                         thumbnailUrl,
                     },
                     { merge: true }
-                );
-                console.log(
-                    "[SAVE_LEARNING_HISTORY] Learning history saved successfully."
                 );
             } catch (error) {
                 console.error(
@@ -331,9 +315,18 @@ function AnalysisPageComponent({
                     }
 
                     const data = await response.json();
-                    const youtubeDetails = await getYoutubeVideoDetails(
-                        videoId
+                    const youtubeDetailsRes = await fetch(
+                        `/api/youtube-data?videoId=${videoId}`
                     );
+                    if (!youtubeDetailsRes.ok) {
+                        const errorData = await youtubeDetailsRes.json();
+                        throw new Error(
+                            `Failed to fetch YouTube details: ${
+                                errorData.error || youtubeDetailsRes.statusText
+                            }`
+                        );
+                    }
+                    const youtubeDetails = await youtubeDetailsRes.json(); // YouTube 상세 정보
 
                     const newAnalysisData: GeminiResponseData = {
                         transcript_text: data.transcript_text,
