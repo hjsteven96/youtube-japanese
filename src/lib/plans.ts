@@ -23,7 +23,7 @@ export const PLANS = {
     },
     pro: {
         name: "Pro 사용자",
-        dailyAnalysisLimit: 100, // 무제한
+        dailyAnalysisLimit: 1000, // 무제한
         maxVideoDuration: 3600, // 2시간 (7200초)
         aiConversation: true, // AI 대화 기능 사용 가능
         price: "₩19,900",

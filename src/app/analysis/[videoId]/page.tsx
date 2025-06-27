@@ -34,10 +34,11 @@ async function getAnalysisData(
  * 페이지 메타데이터를 동적으로 생성합니다.
  */
 export async function generateMetadata({
-    params: { videoId }, // params를 직접 구조 분해
+    params, // params 전체를 받습니다.
 }: {
     params: { videoId: string };
 }): Promise<Metadata> {
+    const videoId = params.videoId; // 여기서 videoId에 접근합니다.
     const cachedData = await getAnalysisData(videoId);
 
     let youtubeTitle = cachedData?.youtubeTitle;
@@ -113,10 +114,11 @@ export async function generateMetadata({
  * 페이지 컴포넌트: 데이터를 가져와 클라이언트 컴포넌트에 props로 전달합니다.
  */
 export default async function AnalysisPage({
-    params: { videoId },
+    params, // params 전체를 받습니다.
 }: {
     params: { videoId: string };
 }) {
+    const videoId = params.videoId; // 여기서 videoId에 접근합니다.
     const initialAnalysisData = await getAnalysisData(videoId);
 
     /**

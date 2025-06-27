@@ -75,9 +75,7 @@ function AnalysisPageComponent({
     const [remainingTime, setRemainingTime] = useState<number | null>(null);
     const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-    const [analysisData, setAnalysisData] = useState<GeminiResponseData | null>(
-        null
-    );
+    const [analysisData, setAnalysisData] = useState<GeminiResponseData | null>(null);
     const [isTranscriptLoading, setIsTranscriptLoading] = useState(true);
     const [isAnalysisLoading, setIsAnalysisLoading] = useState(true);
     const [error, setError] = useState("");
@@ -360,6 +358,10 @@ function AnalysisPageComponent({
 
                 const { analysis } = await analysisRes.json();
 
+                // ★ New: Log the received analysis data
+                console.log("[ANALYSIS_CLIENT_PAGE] Received analysis data:", analysis);
+                console.log("[ANALYSIS_CLIENT_PAGE] isAnalysisLoading before update:", isAnalysisLoading);
+
                 if (isMounted) {
                     setAnalysisData((currentData) => {
                         const finalData = { ...currentData!, analysis };
@@ -370,16 +372,18 @@ function AnalysisPageComponent({
                             channelName: metaData.channelName || null,
                             timestamp: new Date().toISOString(),
                         });
+                        console.log("[ANALYSIS_CLIENT_PAGE] analysisData updated:", finalData); // ★ New: Log updated analysisData
                         return finalData;
                     });
+                    setIsAnalysisLoading(false);
+                    console.log("[ANALYSIS_CLIENT_PAGE] isAnalysisLoading after update:", false); // ★ New: Log state after update
                 }
             } catch (err: any) {
-                if (isMounted)
-                    setError(err.message || "알 수 없는 오류가 발생했습니다.");
-            } finally {
                 if (isMounted) {
+                    setError(err.message || "알 수 없는 오류가 발생했습니다.");
                     setIsTranscriptLoading(false);
-                    setIsAnalysisLoading(false);
+                    setIsAnalysisLoading(false); // Ensure all loading flags are false on error
+                    console.error("[ANALYSIS_CLIENT_PAGE_ERROR] Error in fetchAnalysisData:", err); // ★ New: Log errors more clearly
                 }
             }
         };
@@ -392,7 +396,7 @@ function AnalysisPageComponent({
     }, [
         videoId,
         user,
-        userProfile,
+        // userProfile,
         authInitialized,
         router,
         initialAnalysisData,
@@ -538,7 +542,7 @@ function AnalysisPageComponent({
         setPlaybackRate(rate);
     };
 
-    const isLoading = isTranscriptLoading || !analysisData;
+    const isLoading = isTranscriptLoading;
 
     // [추가] Alert 모달 표시 함수
     const handleShowAlert = (config: {

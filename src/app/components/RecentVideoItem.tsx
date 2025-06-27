@@ -13,7 +13,7 @@ export default function RecentVideoItem({
     channelName,
     summary,
 }: RecentVideoItemProps) {
-    console.log("RecentVideoItem: received summary prop:", summary);
+   
     const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/mqdefault.jpg`;
 
     return (

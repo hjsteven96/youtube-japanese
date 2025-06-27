@@ -33,10 +33,7 @@ export default function TrendingVideos({ videos }: { videos: VideoInfo[] }) {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
                 {/* 5. props로 받은 videos 배열을 사용해 목록을 렌더링합니다. */}
                 {videos.map((video) => {
-                    console.log(
-                        "TrendingVideos: video.summary before passing to RecentVideoItem:",
-                        video.summary
-                    );
+                  
                     return (
                         <RecentVideoItem
                             key={video.videoId}

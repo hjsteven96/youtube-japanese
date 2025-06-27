@@ -33,7 +33,7 @@ async function getTrendingVideos(): Promise<VideoInfo[]> {
         const videos: VideoInfo[] = [];
         querySnapshot.forEach((doc) => {
             const data = doc.data();
-            console.log("Fetched video data (page.tsx):", data);
+         
             const video = {
                 videoId: doc.id,
                 title: data.youtubeTitle || "제목 없음",
@@ -44,7 +44,7 @@ async function getTrendingVideos(): Promise<VideoInfo[]> {
                 channelName: data.channelName || null,
                 summary: data.analysis?.summary || "요약 없음",
             };
-            console.log("Processed video object (page.tsx):", video);
+         
             videos.push(video);
         });
         return videos;
