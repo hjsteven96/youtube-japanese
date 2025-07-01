@@ -122,13 +122,14 @@ const AnalysisTabs = ({
         const safeTranscript = String(transcript || "");
         if (!safeTranscript.trim()) return [];
         const parsed: VideoSegment[] = [];
-        const regex = /\[(\d{2}):(\d{2})\]([^\[]*)/g;
+        const regex = /\[(?:(\d{1,2}):)?(\d{2}):(\d{2})\]([^\[]*)/g;
         const matches = safeTranscript.matchAll(regex);
         for (const match of matches) {
-            const minutes = parseInt(match[1], 10);
-            const seconds = parseInt(match[2], 10);
-            const timeInSeconds = minutes * 60 + seconds;
-            const text = match[3].trim();
+            const hours = match[1] ? parseInt(match[1], 10) : 0;
+            const minutes = parseInt(match[2], 10);
+            const seconds = parseInt(match[3], 10);
+            const timeInSeconds = hours * 3600 + minutes * 60 + seconds;
+            const text = match[4].trim();
 
             if (text) parsed.push({ time: timeInSeconds, text });
         }

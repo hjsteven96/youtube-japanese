@@ -337,15 +337,17 @@ const TranscriptViewer = ({
                                 }}
                             >
                                 [
-                                {String(Math.floor(segment.time / 60)).padStart(
-                                    2,
-                                    "0"
-                                )}
-                                :
-                                {String(Math.floor(segment.time % 60)).padStart(
-                                    2,
-                                    "0"
-                                )}
+                                {(() => {
+                                    const hours = Math.floor(segment.time / 3600);
+                                    const minutes = Math.floor((segment.time % 3600) / 60);
+                                    const seconds = Math.floor(segment.time % 60);
+
+                                    return `${
+                                        hours > 0 ? `${hours}:` : ''
+                                    }${
+                                        String(minutes).padStart(2, "0")
+                                    }:${String(seconds).padStart(2, "0")}`;
+                                })()}
                                 ]
                             </span>{" "}
                             <span
