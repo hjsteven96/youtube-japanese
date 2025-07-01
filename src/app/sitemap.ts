@@ -24,9 +24,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         return {
             url: `${baseUrl}/analysis/${doc.id}`,
             // Firestore에 timestamp가 있으면 사용, 없으면 현재 날짜
-            lastModified: data.timestamp
-                ? new Date(data.timestamp).toISOString()
-                : new Date().toISOString(),
+            lastModified:
+                data.timestamp &&
+                typeof data.timestamp === "object" &&
+                "seconds" in data.timestamp &&
+                typeof data.timestamp.toDate === "function"
+                    ? data.timestamp.toDate().toISOString()
+                    : new Date().toISOString(),
             changeFrequency: "weekly" as const,
             priority: 0.7,
         };

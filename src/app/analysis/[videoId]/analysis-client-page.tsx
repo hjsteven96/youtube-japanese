@@ -5,7 +5,6 @@ import { useParams, useRouter } from "next/navigation";
 import ReactPlayer from "react-player";
 import { onAuthStateChanged, User } from "firebase/auth";
 import { auth, db } from "../../../lib/firebase";
-import { getYoutubeVideoDetails } from "../../../lib/youtube";
 import AnalysisHeader from "../../components/AnalysisHeader";
 import {
     doc,
@@ -77,7 +76,9 @@ function AnalysisPageComponent({
     const [remainingTime, setRemainingTime] = useState<number | null>(null);
     const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-    const [analysisData, setAnalysisData] = useState<GeminiResponseData | null>(null);
+    const [analysisData, setAnalysisData] = useState<GeminiResponseData | null>(
+        null
+    );
     const [isTranscriptLoading, setIsTranscriptLoading] = useState(true);
     const [isAnalysisLoading, setIsAnalysisLoading] = useState(true);
     const [error, setError] = useState("");
@@ -109,40 +110,48 @@ function AnalysisPageComponent({
 
     const plan = userProfile ? PLANS[userProfile.plan] : PLANS.free;
 
-    const saveLearningHistory = useCallback(async (
-        currentUser: User,
-        data: GeminiResponseData,
-        currentVideoId: string
-    ) => {
-        try {
-            const historyDocRef = doc(db, `users/${currentUser.uid}/learningHistory`, currentVideoId);
-            const youtubeUrl = `https://www.youtube.com/watch?v=${currentVideoId}`;
-            const title = data.youtubeTitle || "제목 없음";
-            const duration = data.duration || 0;
-            const thumbnailUrl = data.thumbnailUrl || null;
-
-            console.log("[SAVE_LEARNING_HISTORY] Saving learning history:", {
-                videoId: currentVideoId,
-                youtubeUrl,
-                title,
-                duration,
-                thumbnailUrl,
-                userUid: currentUser.uid,
-            });
-
-            await setDoc(historyDocRef, {
-                youtubeUrl,
-                title,
-                duration,
-                timestamp: serverTimestamp(),
-                lastPlayedTime: 0,
-                thumbnailUrl,
-            }, { merge: true });
-            console.log("[SAVE_LEARNING_HISTORY] Learning history saved successfully.");
-        } catch (error) {
-            console.error("[SAVE_LEARNING_HISTORY_ERROR] Failed to save learning history:", error);
-        }
+    const handleCloseToast = useCallback(() => {
+        setShowToast(false);
     }, []);
+
+    const saveLearningHistory = useCallback(
+        async (
+            currentUser: User,
+            data: GeminiResponseData,
+            currentVideoId: string
+        ) => {
+            try {
+                const historyDocRef = doc(
+                    db,
+                    `users/${currentUser.uid}/learningHistory`,
+                    currentVideoId
+                );
+                const youtubeUrl = `https://www.youtube.com/watch?v=${currentVideoId}`;
+                const title = data.youtubeTitle || "제목 없음";
+                const duration = data.duration || 0;
+                const thumbnailUrl = data.thumbnailUrl || null;
+
+                await setDoc(
+                    historyDocRef,
+                    {
+                        youtubeUrl,
+                        title,
+                        duration,
+                        timestamp: serverTimestamp(),
+                        lastPlayedTime: 0,
+                        thumbnailUrl,
+                    },
+                    { merge: true }
+                );
+            } catch (error) {
+                console.error(
+                    "[SAVE_LEARNING_HISTORY_ERROR] Failed to save learning history:",
+                    error
+                );
+            }
+        },
+        []
+    );
 
     const {
         isRecording,
@@ -252,7 +261,11 @@ function AnalysisPageComponent({
                     setIsTranscriptLoading(false);
                     setIsAnalysisLoading(false);
                     if (user) {
-                        await saveLearningHistory(user, initialAnalysisData, videoId);
+                        await saveLearningHistory(
+                            user,
+                            initialAnalysisData,
+                            videoId
+                        );
                     }
                 }
                 return;
@@ -293,16 +306,31 @@ function AnalysisPageComponent({
                         headers: {
                             "Content-Type": "application/json",
                         },
-                        body: JSON.stringify({ youtubeUrl: `https://www.youtube.com/watch?v=${videoId}` }),
+                        body: JSON.stringify({
+                            youtubeUrl: `https://www.youtube.com/watch?v=${videoId}`,
+                        }),
                     });
 
                     if (!response.ok) {
                         const errorData = await response.json();
-                        throw new Error(`Failed to generate transcript: ${errorData.error}`);
+                        throw new Error(
+                            `Failed to generate transcript: ${errorData.error}`
+                        );
                     }
 
                     const data = await response.json();
-                    const youtubeDetails = await getYoutubeVideoDetails(videoId);
+                    const youtubeDetailsRes = await fetch(
+                        `/api/youtube-data?videoId=${videoId}`
+                    );
+                    if (!youtubeDetailsRes.ok) {
+                        const errorData = await youtubeDetailsRes.json();
+                        throw new Error(
+                            `Failed to fetch YouTube details: ${
+                                errorData.error || youtubeDetailsRes.statusText
+                            }`
+                        );
+                    }
+                    const youtubeDetails = await youtubeDetailsRes.json(); // YouTube 상세 정보
 
                     const newAnalysisData: GeminiResponseData = {
                         transcript_text: data.transcript_text,
@@ -313,7 +341,8 @@ function AnalysisPageComponent({
                             main_questions: [],
                         },
                         youtubeTitle: youtubeDetails?.youtubeTitle || null,
-                        youtubeDescription: youtubeDetails?.youtubeDescription || null,
+                        youtubeDescription:
+                            youtubeDetails?.youtubeDescription || null,
                         thumbnailUrl: youtubeDetails?.thumbnailUrl || null,
                         duration: youtubeDetails?.duration || null,
                         channelName: youtubeDetails?.channelName || null,
@@ -323,14 +352,20 @@ function AnalysisPageComponent({
                         setAnalysisData(processTranscript(newAnalysisData));
                         setIsTranscriptLoading(false);
                         if (user) {
-                            await saveLearningHistory(user, newAnalysisData, videoId);
+                            await saveLearningHistory(
+                                user,
+                                newAnalysisData,
+                                videoId
+                            );
                         }
                     }
 
                     const analysisRes = await fetch("/api/analyze-transcript", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ transcript_text: data.transcript_text }),
+                        body: JSON.stringify({
+                            transcript_text: data.transcript_text,
+                        }),
                     });
 
                     if (!analysisRes.ok) {
@@ -339,24 +374,38 @@ function AnalysisPageComponent({
 
                     const { analysis } = await analysisRes.json();
 
-                    console.log("[ANALYSIS_CLIENT_PAGE] Received analysis data:", analysis);
-                    console.log("[ANALYSIS_CLIENT_PAGE] isAnalysisLoading before update:", isAnalysisLoading);
+                    console.log(
+                        "[ANALYSIS_CLIENT_PAGE] Received analysis data:",
+                        analysis
+                    );
+                    console.log(
+                        "[ANALYSIS_CLIENT_PAGE] isAnalysisLoading before update:",
+                        isAnalysisLoading
+                    );
 
                     if (isMounted) {
                         setAnalysisData((currentData) => {
                             const finalData = { ...currentData!, analysis };
                             setDoc(doc(db, "videoAnalyses", videoId), {
                                 ...finalData,
-                                thumbnailUrl: newAnalysisData.thumbnailUrl || null,
+                                thumbnailUrl:
+                                    newAnalysisData.thumbnailUrl || null,
                                 duration: newAnalysisData.duration || null,
-                                channelName: newAnalysisData.channelName || null,
+                                channelName:
+                                    newAnalysisData.channelName || null,
                                 timestamp: serverTimestamp(),
                             });
-                            console.log("[ANALYSIS_CLIENT_PAGE] analysisData updated:", finalData);
+                            console.log(
+                                "[ANALYSIS_CLIENT_PAGE] analysisData updated:",
+                                finalData
+                            );
                             return finalData;
                         });
                         setIsAnalysisLoading(false);
-                        console.log("[ANALYSIS_CLIENT_PAGE] isAnalysisLoading after update:", false);
+                        console.log(
+                            "[ANALYSIS_CLIENT_PAGE] isAnalysisLoading after update:",
+                            false
+                        );
                     }
                 }
             } catch (err: any) {
@@ -382,7 +431,15 @@ function AnalysisPageComponent({
         return () => {
             isMounted = false;
         };
-    }, [videoId, authInitialized, user, userProfile, initialAnalysisData, router, saveLearningHistory]);
+    }, [
+        videoId,
+        authInitialized,
+        user,
+        userProfile,
+        initialAnalysisData,
+        router,
+        saveLearningHistory,
+    ]);
 
     useEffect(() => {
         if (!user || !videoId || !analysisData) {
@@ -629,7 +686,7 @@ function AnalysisPageComponent({
                 <Toast
                     message={toastMessage}
                     isVisible={showToast}
-                    onClose={() => setShowToast(false)}
+                    onClose={handleCloseToast}
                     duration={3000}
                 />
 

@@ -1,7 +1,7 @@
 // src/app/components/TranscriptViewer.tsx
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { User } from "firebase/auth";
 import { SavedExpression } from "./SavedExpressions";
 import Alert from "./Alert";
@@ -75,7 +75,7 @@ const TranscriptViewer = ({
     const isInitialRender = useRef(true);
     const [showTooltip, setShowTooltip] = useState(false);
     const [tooltipText, setTooltipText] = useState("");
-    const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
+    const [tooltipStyles, setTooltipStyles] = useState<React.CSSProperties>({});
     const [interpretationResult, setInterpretationResult] = useState<
         string | null
     >(null);
@@ -115,31 +115,122 @@ const TranscriptViewer = ({
         };
     }, []);
 
-    // 툴크 관련 로직
     useEffect(() => {
-        const showOrHideTooltip = () => {
+        if (
+            !showTooltip ||
+            !transcriptContainerRef.current ||
+            !tooltipRef.current
+        ) {
+            return; // 툴팁이 표시되지 않거나 DOM 요소가 없으면 실행 안 함
+        }
+
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0 || !tooltipRef.current)
+            return;
+
+        const range = selection.getRangeAt(0);
+        const rect = range.getBoundingClientRect(); // 선택 영역의 뷰포트 기준 위치 및 크기
+        const containerRect =
+            transcriptContainerRef.current.getBoundingClientRect(); // 스크롤 컨테이너의 뷰포트 기준 위치 및 크기
+
+        // 툴팁의 현재 렌더링된 크기 (중요!)
+        const tooltipWidth = tooltipRef.current.offsetWidth;
+        const tooltipHeight = tooltipRef.current.offsetHeight;
+
+        // 선택 영역의 중심점(X)과 상단/하단(Y)을 컨테이너 기준으로 계산
+        const selectionCenterXInContainer =
+            rect.left + rect.width / 2 - containerRect.left;
+        const selectionTopYInContainer = rect.top - containerRect.top;
+        const selectionBottomYInContainer = rect.bottom - containerRect.top;
+
+        let finalTop: number;
+        let finalLeft: number;
+        let transformParts: string[] = [];
+
+        // 1. 수직 위치 결정
+        const padding = 10; // 툴팁과 선택 영역 사이의 간격
+
+        const spaceAbove = selectionTopYInContainer; // 선택 영역 상단까지의 컨테이너 공간
+        const spaceBelow = containerRect.height - selectionBottomYInContainer; // 선택 영역 하단부터 컨테이너 하단까지의 공간
+
+        // 툴팁을 위에 배치할 충분한 공간이 있는지 확인
+        if (spaceAbove >= tooltipHeight + padding) {
+            finalTop = selectionTopYInContainer;
+            transformParts.push("translateY(-100%)"); // 툴팁 높이만큼 위로 이동
+        } else if (spaceBelow >= tooltipHeight + padding) {
+            // 위에 공간이 부족하고, 아래에 충분한 공간이 있으면 아래에 배치
+            finalTop = selectionBottomYInContainer + padding; // 선택 영역 아래 10px 위치
+            transformParts.push("translateY(0%)"); // 수직 변환 없음
+        } else {
+            // 위아래 모두 공간이 부족할 경우, 일단 위에 배치 (잘릴 수 있음)
+            // 또는 컨테이너의 맨 위/아래에 강제 고정하는 로직 추가 가능
+            finalTop = selectionTopYInContainer;
+            transformParts.push("translateY(-100%)");
+            // 이 경우, 툴팁이 컨테이너 상단을 넘어간다면 컨테이너 상단에 고정
+            if (finalTop - tooltipHeight < 0) {
+                finalTop = 0;
+                transformParts[0] = "translateY(0%)"; // 이미 translateY(-100%)가 있다면 교체
+            }
+        }
+
+        // 2. 수평 위치 결정
+        // 툴팁을 선택 영역의 중앙에 오도록 초기 left 값 설정
+        let desiredLeft = selectionCenterXInContainer - tooltipWidth / 2;
+
+        // 툴팁이 컨테이너의 왼쪽 경계를 넘어가는지 확인
+        if (desiredLeft < 0) {
+            finalLeft = 0; // 컨테이너 왼쪽 경계에 툴팁 왼쪽을 맞춤
+            transformParts = transformParts.filter(
+                (p) => !p.startsWith("translateX")
+            ); // 수평 translateX 제거
+            transformParts.push("translateX(0%)"); // 왼쪽 끝에 고정
+        }
+        // 툴팁이 컨테이너의 오른쪽 경계를 넘어가는지 확인
+        else if (desiredLeft + tooltipWidth > containerRect.width) {
+            finalLeft = containerRect.width - tooltipWidth; // 컨테이너 오른쪽 경계에 툴팁 오른쪽을 맞춤
+            transformParts = transformParts.filter(
+                (p) => !p.startsWith("translateX")
+            );
+            transformParts.push("translateX(0%)"); // 오른쪽 끝에 고정
+        } else {
+            // 컨테이너 범위 내에 있으면 중앙에 배치
+            finalLeft = selectionCenterXInContainer;
+            transformParts = transformParts.filter(
+                (p) => !p.startsWith("translateX")
+            ); // 기존 translateX 제거
+            transformParts.push("translateX(-50%)"); // 중앙 정렬
+        }
+
+        // 스타일 업데이트
+        setTooltipStyles({
+            top: finalTop,
+            left: finalLeft,
+            transform: transformParts.join(" "), // 모든 transform 속성을 하나의 문자열로 결합
+            zIndex: 55, // 다른 UI보다 위에 표시되도록 Z-index 설정
+            // tooltip-appear 애니메이션을 위해 opacity는 CSS 클래스에 맡김
+            opacity: showTooltip ? 1 : 0, // 툴팁 가시성 상태에 따라 투명도 조정
+            visibility: showTooltip ? "visible" : "hidden", // 툴팁 가시성 상태에 따라 표시 여부 조정
+        });
+    }, [showTooltip, interpretationResult]); // showTooltip, interpretationResult 변경 시 재실행
+
+    // 텍스트 선택 시 툴팁 표시를 위한 useEffect
+    useEffect(() => {
+        const handleSelection = () => {
             const selection = window.getSelection();
-            if (!selection) return;
+            if (!selection || !transcriptContainerRef.current) {
+                setShowTooltip(false);
+                return;
+            }
 
             const selectedText = selection.toString().trim();
+            const containerNode = transcriptContainerRef.current;
 
-            if (selectedText && selectedText.length > 0) {
-                const containerNode = transcriptContainerRef.current;
-                if (
-                    !containerNode ||
-                    !selection.anchorNode ||
-                    !containerNode.contains(selection.anchorNode)
-                ) {
-                    return;
-                }
-
-                const range = selection.getRangeAt(0);
-                const rect = range.getBoundingClientRect();
-                const containerRect = containerNode.getBoundingClientRect();
-
-                const xPos = rect.left - containerRect.left + rect.width / 2;
-                const yPos = rect.top - containerRect.top;
-
+            if (
+                selectedText &&
+                selectedText.length > 0 &&
+                containerNode.contains(selection.anchorNode!)
+            ) {
+                // 툴팁 표시 관련 상태만 업데이트
                 setInterpretationResult(null);
                 setTooltipText(selectedText);
 
@@ -150,17 +241,15 @@ const TranscriptViewer = ({
                         .trim() || "";
                 setSelectedFullSentenceContext(fullSentence || selectedText);
 
-                setTooltipPosition({ x: xPos, y: yPos });
-                setShowTooltip(true);
+                setShowTooltip(true); // 툴팁 표시 요청
             } else {
+                // 선택 해제 시 툴팁 숨김
                 if (!isInterpreting) {
                     setShowTooltip(false);
+                    setTooltipText("");
+                    setInterpretationResult(null);
                 }
             }
-        };
-
-        const handleSelection = () => {
-            setTimeout(showOrHideTooltip, 0);
         };
 
         const container = transcriptContainerRef.current;
@@ -175,8 +264,7 @@ const TranscriptViewer = ({
             }
             document.removeEventListener("selectionchange", handleSelection);
         };
-    }, [isInterpreting]);
-
+    }, [isInterpreting]); // isInterpreting이 변경될 때만 이 useEffect를 다시 실행
     // 모바일 환경을 위한 타이머 로직이 포함된 라인 클릭 핸들러
     const handleLineClick = (index: number) => {
         if (hideButtonTimerRef.current) {
@@ -401,11 +489,7 @@ const TranscriptViewer = ({
                 <div
                     ref={tooltipRef}
                     className="absolute z-20 bg-black bg-opacity-80 text-white text-sm rounded-lg shadow-lg py-2 px-3 flex flex-col space-y-2 max-w-xs min-w-[120px]"
-                    style={{
-                        left: tooltipPosition.x,
-                        top: tooltipPosition.y,
-                        transform: "translateX(-50%) translateY(-100%)",
-                    }}
+                    style={tooltipStyles}
                 >
                     {isInterpreting ? (
                         <p>AI가 해석 중...</p>
