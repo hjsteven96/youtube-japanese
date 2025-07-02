@@ -144,7 +144,7 @@ export default async function AnalysisPage({
         return {
             "@context": "https://schema.org",
             "@type": "LearningResource",
-            name: `${data.youtubeTitle} - AI 영어 학습 노트`,
+            name: `유튜브 영어 공부 - ${data.youtubeTitle} - 자막/해석/쉐도잉은 링토, Lingto AI 영어 학습`,
             description: `"${data.youtubeTitle}" 유튜브 영상으로 배우는 실전 영어. AI가 분석한 핵심 표현(${learningExpressions})과 단어(${learningKeywords}), 전체 자막을 제공합니다.`,
             url: pageUrl,
             image: data.thumbnailUrl,

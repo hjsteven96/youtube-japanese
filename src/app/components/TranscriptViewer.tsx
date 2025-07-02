@@ -460,6 +460,12 @@ const TranscriptViewer = ({
                 className="text-gray-700 relative select-text"
                 onContextMenu={(e) => e.preventDefault()}
             >
+                {/* Tip 텍스트 추가 */}
+                {parsedTranscript.length > 0 && (
+                    <p className="text-sm text-gray-500 mb-4 px-2"> 
+                        Tip: 모르는 단어나 문장을 드래그하여 AI 해석을 확인해보세요!
+                    </p>
+                )}
                 {parsedTranscript.map((segment, index) => {
                     const isCurrent = index === activeSegmentIndex;
                     const nextSegment = parsedTranscript[index + 1];
