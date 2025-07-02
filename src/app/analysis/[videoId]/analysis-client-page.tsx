@@ -83,15 +83,26 @@ function AnalysisPageComponent({
     const [isAnalysisLoading, setIsAnalysisLoading] = useState(true);
     const [error, setError] = useState("");
 
-    const [isRedirecting, setIsRedirecting] = useState(false);
     const [showToast, setShowToast] = useState(false);
     const [toastMessage, setToastMessage] = useState("");
+
     const [showAlertModal, setShowAlertModal] = useState(false);
     const [alertModalContent, setAlertModalContent] = useState({
         title: "",
         subtitle: "",
         buttons: [] as any[],
     });
+
+    const handleShowAlert = (config: {
+        title: string;
+        subtitle: string;
+        buttons: { text: string; onClick: () => void; isPrimary?: boolean }[];
+    }) => {
+        setAlertModalContent(config);
+        setShowAlertModal(true);
+    };
+
+    const [isRedirecting, setIsRedirecting] = useState(false);
     const playerRef = useRef<ReactPlayer>(null);
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentTime, setCurrentTime] = useState(0);
@@ -167,8 +178,29 @@ function AnalysisPageComponent({
         videoId: videoId,
         user: user,
         sessionTimeLimit: plan.sessionTimeLimit, // ★ 수정: 분을 초로 변환
+        onShowAlert: handleShowAlert,
         onConversationStart: () => {
-            if (!userProfile) return false;
+            if (!userProfile) {
+                handleShowAlert({
+                    title: "로그인이 필요합니다",
+                    subtitle: "AI 대화 기능을 사용하려면 먼저 로그인해주세요.",
+                    buttons: [
+                        {
+                            text: "로그인",
+                            onClick: () => {
+                                router.push("/login");
+                            },
+                            isPrimary: true,
+                        },
+                        {
+                            text: "취소",
+                            onClick: () => {},
+                            isPrimary: false,
+                        },
+                    ],
+                });
+                return false;
+            }
 
             const monthlyLimit = plan.monthlyTimeLimit; // ★ 수정: 분을 초로 변환
             const monthlyUsed = userProfile.usage.monthlyConversationUsed || 0;
@@ -582,15 +614,6 @@ function AnalysisPageComponent({
     };
 
     const isLoading = isTranscriptLoading;
-
-    const handleShowAlert = (config: {
-        title: string;
-        subtitle: string;
-        buttons: { text: string; onClick: () => void; isPrimary?: boolean }[];
-    }) => {
-        setAlertModalContent(config);
-        setShowAlertModal(true);
-    };
 
     if (isRedirecting) {
         return (

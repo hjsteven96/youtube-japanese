@@ -33,6 +33,11 @@ interface UseGeminiLiveConversationProps {
     onConversationEnd: (durationInSeconds: number) => void; // 대화 종료 콜백
     sessionTimeLimit: number; // 1회 대화 제한 시간
     user: User | null;
+    onShowAlert: (config: {
+        title: string;
+        subtitle: string;
+        buttons: { text: string; onClick: () => void; isPrimary?: boolean }[];
+    }) => void;
 }
 
 interface UseGeminiLiveConversationResult {
@@ -53,6 +58,8 @@ export const useGeminiLiveConversation = ({
     sessionTimeLimit,
     onConversationStart,
     videoId,
+    user,
+    onShowAlert,
 }: UseGeminiLiveConversationProps): UseGeminiLiveConversationResult => {
     const [isConnecting, setIsConnecting] = useState(false); 
     const [isRecording, setIsRecording] = useState(false);
