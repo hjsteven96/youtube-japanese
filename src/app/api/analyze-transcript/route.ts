@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     - 'summary': A concise summary of the video content in KOREAN (1-2 sentences).
     - 'keywords': An array of 5 key English terms that would be useful for a learner.
     - 'slang_expressions': An array of objects, where each object has an 'expression' (the English slang/idiom) and a 'meaning' (its explanation in KOREAN).
-    - 'main_questions': An array of 2 main questions in ENGLISH based on the video's content, to encourage speaking practice.
+    - 'main_questions': An array of 2 main questions in ENGLISH based on the video's content, designed to encourage speaking practice. Each question must be a single, distinct question. Ensure they are concise, simple, and easy to understand, focusing on comprehension rather than rote memorization.
     `;
 
     try {

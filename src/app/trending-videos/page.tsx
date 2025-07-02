@@ -136,7 +136,7 @@ export default async function TrendingVideosPage() {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {videos.map((video, index) => (
-                            <BlurFade key={video.videoId} delay={0.25 + index * 0.05} inView>
+                           
                                 <Link
                                     href={`/analysis/${video.videoId}`}
                                     className="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden transform hover:-translate-y-2"
@@ -223,7 +223,7 @@ export default async function TrendingVideosPage() {
                                         </div>
                                     )}
                                 </Link>
-                            </BlurFade>
+                      
                         ))}
                     </div>
                 )}
