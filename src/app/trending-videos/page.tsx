@@ -136,94 +136,93 @@ export default async function TrendingVideosPage() {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {videos.map((video, index) => (
-                           
-                                <Link
-                                    href={`/analysis/${video.videoId}`}
-                                    className="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden transform hover:-translate-y-2"
-                                >
-                                    {/* Gradient Overlay on Hover */}
-                                    <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 to-purple-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none z-10" />
+                            <Link
+                                key={video.videoId}
+                                href={`/analysis/${video.videoId}`}
+                                className="group relative bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden transform hover:-translate-y-2"
+                            >
+                                {/* Gradient Overlay on Hover */}
+                                <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 to-purple-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none z-10" />
 
-                                    {/* Thumbnail */}
-                                    <div className="relative w-full aspect-video overflow-hidden">
-                                        <Image
-                                            src={`https://img.youtube.com/vi/${video.videoId}/hqdefault.jpg`}
-                                            alt={video.title}
-                                            layout="fill"
-                                            objectFit="cover"
-                                            className="group-hover:scale-110 transition-transform duration-700"
-                                        />
-                                        {/* Duration Badge */}
-                                        <div className="absolute bottom-3 right-3 bg-black/80 text-white text-xs px-2 py-1 rounded-md backdrop-blur-sm">
-                                            {Math.floor(video.duration / 60)}:
-                                            {(video.duration % 60)
-                                                .toString()
-                                                .padStart(2, "0")}
-                                        </div>
-                                        {/* Play Icon Overlay */}
-                                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                            <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center shadow-lg backdrop-blur-sm group-hover:glass-morphism-strong transition-all duration-300">
-                                                <svg
-                                                    className="w-6 h-6 text-gray-800 ml-1"
-                                                    fill="currentColor"
-                                                    viewBox="0 0 20 20"
-                                                >
-                                                    <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
-                                                </svg>
-                                            </div>
-                                        </div>
+                                {/* Thumbnail */}
+                                <div className="relative w-full aspect-video overflow-hidden">
+                                    <Image
+                                        src={`https://img.youtube.com/vi/${video.videoId}/hqdefault.jpg`}
+                                        alt={video.title}
+                                        layout="fill"
+                                        objectFit="cover"
+                                        className="group-hover:scale-110 transition-transform duration-700"
+                                    />
+                                    {/* Duration Badge */}
+                                    <div className="absolute bottom-3 right-3 bg-black/80 text-white text-xs px-2 py-1 rounded-md backdrop-blur-sm">
+                                        {Math.floor(video.duration / 60)}:
+                                        {(video.duration % 60)
+                                            .toString()
+                                            .padStart(2, "0")}
                                     </div>
-
-                                    {/* Content */}
-                                    <div className="p-5 relative z-20">
-                                        {video.channelName && (
-                                            <div className="flex items-center gap-2 mb-2">
-                                                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-xs font-semibold">
-                                                    {video.channelName
-                                                        .charAt(0)
-                                                        .toUpperCase()}
-                                                </div>
-                                                <p className="text-gray-600 text-sm font-medium">
-                                                    {video.channelName}
-                                                </p>
-                                            </div>
-                                        )}
-                                        <h2 className="text-lg font-bold text-gray-800 mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
-                                            {video.title}
-                                        </h2>
-                                        {video.summary && (
-                                            <p className="text-gray-600 text-sm line-clamp-2 leading-relaxed">
-                                                {video.summary}
-                                            </p>
-                                        )}
-
-                                        {/* View Analysis Link */}
-                                        <div className="mt-4 flex items-center text-sm font-medium text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                                            <span>분석 보기</span>
+                                    {/* Play Icon Overlay */}
+                                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                        <div className="w-16 h-16 bg-white/90 rounded-full flex items-center justify-center shadow-lg backdrop-blur-sm group-hover:glass-morphism-strong transition-all duration-300">
                                             <svg
-                                                className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform"
-                                                fill="none"
-                                                stroke="currentColor"
-                                                viewBox="0 0 24 24"
+                                                className="w-6 h-6 text-gray-800 ml-1"
+                                                fill="currentColor"
+                                                viewBox="0 0 20 20"
                                             >
-                                                <path
-                                                    strokeLinecap="round"
-                                                    strokeLinejoin="round"
-                                                    strokeWidth={2}
-                                                    d="M9 5l7 7-7 7"
-                                                />
+                                                <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
                                             </svg>
                                         </div>
                                     </div>
+                                </div>
 
-                                    {/* Index Badge */}
-                                    {index < 3 && (
-                                        <div className="absolute top-4 left-4 w-10 h-10 rounded-full flex items-center justify-center text-gray-800 font-bold glass-morphism-strong opacity-100 group-hover:opacity-0 transition-opacity duration-300">
-                                            {index + 1}
+                                {/* Content */}
+                                <div className="p-5 relative z-20">
+                                    {video.channelName && (
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center text-white text-xs font-semibold">
+                                                {video.channelName
+                                                    .charAt(0)
+                                                    .toUpperCase()}
+                                            </div>
+                                            <p className="text-gray-600 text-sm font-medium">
+                                                {video.channelName}
+                                            </p>
                                         </div>
                                     )}
-                                </Link>
-                      
+                                    <h2 className="text-lg font-bold text-gray-800 mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
+                                        {video.title}
+                                    </h2>
+                                    {video.summary && (
+                                        <p className="text-gray-600 text-sm line-clamp-2 leading-relaxed">
+                                            {video.summary}
+                                        </p>
+                                    )}
+
+                                    {/* View Analysis Link */}
+                                    <div className="mt-4 flex items-center text-sm font-medium text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                                        <span>분석 보기</span>
+                                        <svg
+                                            className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                                strokeWidth={2}
+                                                d="M9 5l7 7-7 7"
+                                            />
+                                        </svg>
+                                    </div>
+                                </div>
+
+                                {/* Index Badge */}
+                                {index < 3 && (
+                                    <div className="absolute top-4 left-4 w-10 h-10 rounded-full flex items-center justify-center text-gray-800 font-bold glass-morphism-strong opacity-100 group-hover:opacity-0 transition-opacity duration-300">
+                                        {index + 1}
+                                    </div>
+                                )}
+                            </Link>
                         ))}
                     </div>
                 )}
