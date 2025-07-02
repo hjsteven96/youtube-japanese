@@ -451,10 +451,15 @@ const MyPage = () => {
                                                 {exp.interpretation}
                                             </p>
                                             <a
-                                                href={exp.youtubeUrl}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="inline-flex items-center text-sm text-gray-500 hover:text-blue-500"
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    const url = new URL(exp.youtubeUrl);
+                                                    const videoId = url.searchParams.get("v");
+                                                    if (videoId) {
+                                                        router.push(`/analysis/${videoId}`);
+                                                    }
+                                                }}
+                                                className="inline-flex items-center text-sm text-gray-500 hover:text-blue-500 cursor-pointer"
                                             >
                                                 <ExternalLink className="w-4 h-4 mr-1" />
                                                 영상 보기
