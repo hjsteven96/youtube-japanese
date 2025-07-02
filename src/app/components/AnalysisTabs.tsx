@@ -296,11 +296,32 @@ const AnalysisTabs = ({
                                                         {question}
                                                     </span>
                                                     <button
-                                                        onClick={() =>
+                                                        onClick={() => {
+                                                            if (!user) {
+                                                                onShowAlert({
+                                                                    title: "로그인이 필요합니다",
+                                                                    subtitle: "AI 대화 기능을 사용하려면 먼저 로그인해주세요.",
+                                                                    buttons: [
+                                                                        {
+                                                                            text: "로그인",
+                                                                            onClick: () => {
+                                                                                window.location.href = "/login";
+                                                                            },
+                                                                            isPrimary: true,
+                                                                        },
+                                                                        {
+                                                                            text: "취소",
+                                                                            onClick: () => {},
+                                                                            isPrimary: false,
+                                                                        },
+                                                                    ],
+                                                                });
+                                                                return;
+                                                            }
                                                             onStartConversation(
                                                                 question
-                                                            )
-                                                        }
+                                                            );
+                                                        }}
                                                         className="ml-4 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 transform hover:scale-105"
                                                         disabled={
                                                             isConversationPending
@@ -319,11 +340,32 @@ const AnalysisTabs = ({
                                             자유롭게 대화를 시작할 수 있습니다.
                                         </p>
                                         <button
-                                            onClick={() =>
+                                            onClick={() => {
+                                                if (!user) {
+                                                    onShowAlert({
+                                                        title: "로그인이 필요합니다",
+                                                        subtitle: "AI 대화 기능을 사용하려면 먼저 로그인해주세요.",
+                                                        buttons: [
+                                                            {
+                                                                text: "로그인",
+                                                                onClick: () => {
+                                                                    window.location.href = "/login";
+                                                                },
+                                                                isPrimary: true,
+                                                            },
+                                                            {
+                                                                text: "취소",
+                                                                onClick: () => {},
+                                                                isPrimary: false,
+                                                            },
+                                                        ],
+                                                    });
+                                                    return;
+                                                }
                                                 onStartConversation(
                                                     "Hello! Let's practice English together."
-                                                )
-                                            }
+                                                );
+                                            }}
                                             className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 transform hover:scale-105"
                                             disabled={isConversationPending}
                                         >
