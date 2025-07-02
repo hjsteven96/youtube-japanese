@@ -258,6 +258,7 @@ const AnalysisTabs = ({
                         maxSavedWords={maxSavedWords}
                         savedExpressionsCount={savedExpressionsCount}
                         onShowAlert={onShowAlert}
+                        savedExpressions={savedExpressions}
                     />
                 )}
 

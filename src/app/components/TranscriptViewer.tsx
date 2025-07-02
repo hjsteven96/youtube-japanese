@@ -1,7 +1,7 @@
 // src/app/components/TranscriptViewer.tsx
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { User } from "firebase/auth";
 import { SavedExpression } from "./SavedExpressions";
 import Alert from "./Alert";
@@ -34,6 +34,7 @@ interface TranscriptViewerProps {
         subtitle: string;
         buttons: { text: string; onClick: () => void; isPrimary?: boolean }[];
     }) => void;
+    savedExpressions: SavedExpression[];
 }
 
 // --- 유틸리티 함수 (변경 없음) ---
@@ -43,7 +44,7 @@ const extractVideoId = (url: string): string | null => {
     return match ? match[1] : null;
 };
 
-// --- 컴포넌트 본문 (최종 수정 완료) ---
+// --- 컴포넌트 본문 (수정 완료) ---
 const TranscriptViewer = ({
     parsedTranscript,
     activeSegmentIndex,
@@ -61,12 +62,14 @@ const TranscriptViewer = ({
     maxSavedWords,
     savedExpressionsCount,
     onShowAlert,
+    savedExpressions,
 }: TranscriptViewerProps) => {
     const transcriptContainerRef = useRef<HTMLDivElement>(null);
-    const tooltipRef = useRef<HTMLDivElement>(null);
+    const tooltipRef = useRef<HTMLDivElement>(null); // 텍스트 선택(드래그) 툴팁 ref
+    // [수정 1] 하이라이트 클릭 툴팁을 위한 ref 추가
+    const highlightTooltipRef = useRef<HTMLDivElement>(null); 
     const segmentRefs = useRef<(HTMLParagraphElement | null)[]>([]);
 
-    // 모바일에서 버튼 자동 숨김을 위한 타이머 참조
     const hideButtonTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     const [selectedForActionIndex, setSelectedForActionIndex] = useState<
@@ -87,8 +90,108 @@ const TranscriptViewer = ({
         title: "",
         subtitle: "",
     });
+    
+    const [tooltipInfo, setTooltipInfo] = useState<{ 
+        visible: boolean; 
+        content: string; 
+        x: number; 
+        y: number; 
+    } | null>(null);
 
-    // 스크롤 제어 로직 (변경 없음)
+    // 저장된 표현 목록을 렌더링 최적화를 위해 Set으로 변환
+    const savedTexts = useMemo(() => 
+        new Set(savedExpressions.map(exp => exp.originalText.toLowerCase())),
+        [savedExpressions]
+    );
+
+    // [추가] savedExpressions 데이터 확인용 로그
+    useEffect(() => {
+        console.log('Saved expressions:', savedExpressions);
+    }, [savedExpressions]);
+
+    // 하이라이트 클릭 핸들러
+    const handleHighlightClick = useCallback(
+        (event: React.MouseEvent<HTMLSpanElement>,
+        expression: SavedExpression
+    ) => {
+        event.stopPropagation();
+        event.preventDefault(); // [추가] 이벤트의 기본 동작 방지
+        
+        console.log('Highlight clicked:', expression); // [디버깅] 클릭된 표현 로깅
+
+        const rect = event.currentTarget.getBoundingClientRect();
+        const newTooltipInfo = {
+            visible: true,
+            content: expression.interpretation,
+            x: rect.left + rect.width / 2 + window.scrollX,
+            y: rect.bottom + window.scrollY + 5,
+        };
+        setTooltipInfo(newTooltipInfo);
+        console.log('Setting tooltip info:', newTooltipInfo); // [디버깅] 툴팁 정보 설정 로깅
+    }, []);
+    
+    // [수정 3] 하이라이트 클릭 툴팁을 숨기는 useEffect 재수정 (setTimeout 재추가)
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (highlightTooltipRef.current && !highlightTooltipRef.current.contains(event.target as Node)) {
+                setTooltipInfo(null);
+            }
+        };
+
+        if (tooltipInfo?.visible) {
+            // 툴크가 나타나는 직후에 이벤트 리스너를 추가하여, 동일한 클릭 이벤트로 인해 닫히는 것을 방지
+            const timer = setTimeout(() => {
+                document.addEventListener("mousedown", handleClickOutside);
+            }, 100); // 짧은 지연 추가 (재추가)
+            return () => {
+                clearTimeout(timer); // 타이머 정리
+                document.removeEventListener("mousedown", handleClickOutside);
+            };
+        }
+        return () => {};
+    }, [tooltipInfo]);
+
+    const renderHighlightedText = useCallback((text: string) => {
+        if (savedExpressions.length === 0) {
+            return <span>{text}</span>;
+        }
+        const regex = new RegExp(
+            savedExpressions
+                .map(exp => exp.originalText.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'))
+                .join('|'),
+            'gi'
+        );
+        
+        const parts = text.split(regex);
+        const matches = text.match(regex) || [];
+
+        return (
+            <span>
+                {parts.map((part, index) => (
+                    <React.Fragment key={index}>
+                        {part}
+                        {matches[index] && (() => {
+                            const matchedExpression = savedExpressions.find(
+                                exp => exp.originalText.toLowerCase() === matches[index].toLowerCase()
+                            );
+                            if (matchedExpression) {
+                                return (
+                                    <span
+                                        className="bg-yellow-200/70 rounded px-1 py-0.5 cursor-pointer hover:bg-yellow-300/70"
+                                        onClick={(e) => handleHighlightClick(e, matchedExpression)}
+                                    >
+                                        {matches[index]}
+                                    </span>
+                                );
+                            }
+                            return <span>{matches[index]}</span>;
+                        })()}
+                    </React.Fragment>
+                ))}
+            </span>
+        );
+    }, [savedExpressions, handleHighlightClick]);
+
     useEffect(() => {
         if (activeSegmentIndex < 1) return;
 
@@ -106,7 +209,6 @@ const TranscriptViewer = ({
         }
     }, [activeSegmentIndex]);
 
-    // 컴포넌트 언마운트 시 타이머 정리
     useEffect(() => {
         return () => {
             if (hideButtonTimerRef.current) {
@@ -121,7 +223,7 @@ const TranscriptViewer = ({
             !transcriptContainerRef.current ||
             !tooltipRef.current
         ) {
-            return; // 툴팁이 표시되지 않거나 DOM 요소가 없으면 실행 안 함
+            return;
         }
 
         const selection = window.getSelection();
@@ -129,15 +231,13 @@ const TranscriptViewer = ({
             return;
 
         const range = selection.getRangeAt(0);
-        const rect = range.getBoundingClientRect(); // 선택 영역의 뷰포트 기준 위치 및 크기
+        const rect = range.getBoundingClientRect();
         const containerRect =
-            transcriptContainerRef.current.getBoundingClientRect(); // 스크롤 컨테이너의 뷰포트 기준 위치 및 크기
+            transcriptContainerRef.current.getBoundingClientRect();
 
-        // 툴팁의 현재 렌더링된 크기 (중요!)
         const tooltipWidth = tooltipRef.current.offsetWidth;
         const tooltipHeight = tooltipRef.current.offsetHeight;
 
-        // 선택 영역의 중심점(X)과 상단/하단(Y)을 컨테이너 기준으로 계산
         const selectionCenterXInContainer =
             rect.left + rect.width / 2 - containerRect.left;
         const selectionTopYInContainer = rect.top - containerRect.top;
@@ -146,74 +246,58 @@ const TranscriptViewer = ({
         let finalTop: number;
         let finalLeft: number;
         let transformParts: string[] = [];
+        const padding = 10;
+        const spaceAbove = selectionTopYInContainer;
+        const spaceBelow = containerRect.height - selectionBottomYInContainer;
 
-        // 1. 수직 위치 결정
-        const padding = 10; // 툴팁과 선택 영역 사이의 간격
-
-        const spaceAbove = selectionTopYInContainer; // 선택 영역 상단까지의 컨테이너 공간
-        const spaceBelow = containerRect.height - selectionBottomYInContainer; // 선택 영역 하단부터 컨테이너 하단까지의 공간
-
-        // 툴팁을 위에 배치할 충분한 공간이 있는지 확인
         if (spaceAbove >= tooltipHeight + padding) {
             finalTop = selectionTopYInContainer;
-            transformParts.push("translateY(-100%)"); // 툴팁 높이만큼 위로 이동
+            transformParts.push("translateY(-100%)");
         } else if (spaceBelow >= tooltipHeight + padding) {
-            // 위에 공간이 부족하고, 아래에 충분한 공간이 있으면 아래에 배치
-            finalTop = selectionBottomYInContainer + padding; // 선택 영역 아래 10px 위치
-            transformParts.push("translateY(0%)"); // 수직 변환 없음
+            finalTop = selectionBottomYInContainer + padding;
+            transformParts.push("translateY(0%)");
         } else {
-            // 위아래 모두 공간이 부족할 경우, 일단 위에 배치 (잘릴 수 있음)
-            // 또는 컨테이너의 맨 위/아래에 강제 고정하는 로직 추가 가능
             finalTop = selectionTopYInContainer;
             transformParts.push("translateY(-100%)");
-            // 이 경우, 툴팁이 컨테이너 상단을 넘어간다면 컨테이너 상단에 고정
             if (finalTop - tooltipHeight < 0) {
                 finalTop = 0;
-                transformParts[0] = "translateY(0%)"; // 이미 translateY(-100%)가 있다면 교체
+                transformParts[0] = "translateY(0%)";
             }
         }
 
-        // 2. 수평 위치 결정
-        // 툴팁을 선택 영역의 중앙에 오도록 초기 left 값 설정
         let desiredLeft = selectionCenterXInContainer - tooltipWidth / 2;
 
-        // 툴팁이 컨테이너의 왼쪽 경계를 넘어가는지 확인
         if (desiredLeft < 0) {
-            finalLeft = 0; // 컨테이너 왼쪽 경계에 툴팁 왼쪽을 맞춤
+            finalLeft = 0; 
             transformParts = transformParts.filter(
                 (p) => !p.startsWith("translateX")
-            ); // 수평 translateX 제거
-            transformParts.push("translateX(0%)"); // 왼쪽 끝에 고정
+            ); 
+            transformParts.push("translateX(0%)");
         }
-        // 툴팁이 컨테이너의 오른쪽 경계를 넘어가는지 확인
         else if (desiredLeft + tooltipWidth > containerRect.width) {
-            finalLeft = containerRect.width - tooltipWidth; // 컨테이너 오른쪽 경계에 툴팁 오른쪽을 맞춤
+            finalLeft = containerRect.width - tooltipWidth;
             transformParts = transformParts.filter(
                 (p) => !p.startsWith("translateX")
             );
-            transformParts.push("translateX(0%)"); // 오른쪽 끝에 고정
+            transformParts.push("translateX(0%)");
         } else {
-            // 컨테이너 범위 내에 있으면 중앙에 배치
             finalLeft = selectionCenterXInContainer;
             transformParts = transformParts.filter(
                 (p) => !p.startsWith("translateX")
-            ); // 기존 translateX 제거
-            transformParts.push("translateX(-50%)"); // 중앙 정렬
+            );
+            transformParts.push("translateX(-50%)");
         }
-
-        // 스타일 업데이트
+        
         setTooltipStyles({
             top: finalTop,
             left: finalLeft,
-            transform: transformParts.join(" "), // 모든 transform 속성을 하나의 문자열로 결합
-            zIndex: 55, // 다른 UI보다 위에 표시되도록 Z-index 설정
-            // tooltip-appear 애니메이션을 위해 opacity는 CSS 클래스에 맡김
-            opacity: showTooltip ? 1 : 0, // 툴팁 가시성 상태에 따라 투명도 조정
-            visibility: showTooltip ? "visible" : "hidden", // 툴팁 가시성 상태에 따라 표시 여부 조정
+            transform: transformParts.join(" "),
+            zIndex: 55,
+            opacity: showTooltip ? 1 : 0,
+            visibility: showTooltip ? "visible" : "hidden",
         });
-    }, [showTooltip, interpretationResult]); // showTooltip, interpretationResult 변경 시 재실행
+    }, [showTooltip, interpretationResult]);
 
-    // 텍스트 선택 시 툴팁 표시를 위한 useEffect
     useEffect(() => {
         const handleSelection = () => {
             const selection = window.getSelection();
@@ -230,7 +314,6 @@ const TranscriptViewer = ({
                 selectedText.length > 0 &&
                 containerNode.contains(selection.anchorNode!)
             ) {
-                // 툴팁 표시 관련 상태만 업데이트
                 setInterpretationResult(null);
                 setTooltipText(selectedText);
 
@@ -241,9 +324,8 @@ const TranscriptViewer = ({
                         .trim() || "";
                 setSelectedFullSentenceContext(fullSentence || selectedText);
 
-                setShowTooltip(true); // 툴팁 표시 요청
+                setShowTooltip(true);
             } else {
-                // 선택 해제 시 툴팁 숨김
                 if (!isInterpreting) {
                     setShowTooltip(false);
                     setTooltipText("");
@@ -264,8 +346,8 @@ const TranscriptViewer = ({
             }
             document.removeEventListener("selectionchange", handleSelection);
         };
-    }, [isInterpreting]); // isInterpreting이 변경될 때만 이 useEffect를 다시 실행
-    // 모바일 환경을 위한 타이머 로직이 포함된 라인 클릭 핸들러
+    }, [isInterpreting]);
+    
     const handleLineClick = (index: number) => {
         if (hideButtonTimerRef.current) {
             clearTimeout(hideButtonTimerRef.current);
@@ -280,8 +362,7 @@ const TranscriptViewer = ({
             }, 3000);
         }
     };
-
-    // 저장 및 해석 관련 함수
+    
     const handleSaveInterpretation = async () => {
         if (!user || !tooltipText || !interpretationResult || !youtubeUrl) {
             setAlertMessage({
@@ -292,7 +373,6 @@ const TranscriptViewer = ({
             return;
         }
 
-        // [추가] 저장 가능한 단어 수 제한
         if (savedExpressionsCount >= maxSavedWords) {
             onShowAlert({
                 title: "저장 한도 초과",
@@ -374,51 +454,47 @@ const TranscriptViewer = ({
     };
 
     return (
-        <div
-            ref={transcriptContainerRef}
-            className="text-gray-700 relative select-text"
-            onContextMenu={(e) => e.preventDefault()}
-        >
-            {parsedTranscript.map((segment, index) => {
-                const isCurrent = index === activeSegmentIndex;
-                const nextSegment = parsedTranscript[index + 1];
-                const segmentEndTime = nextSegment
-                    ? nextSegment.time
-                    : videoDuration || segment.time + 5;
-                const isLoopingThisSegment =
-                    isLooping && currentLoopStartTime === segment.time;
-                const isSelectedForAction = selectedForActionIndex === index;
+        <>
+            <div
+                ref={transcriptContainerRef}
+                className="text-gray-700 relative select-text"
+                onContextMenu={(e) => e.preventDefault()}
+            >
+                {parsedTranscript.map((segment, index) => {
+                    const isCurrent = index === activeSegmentIndex;
+                    const nextSegment = parsedTranscript[index + 1];
+                    const segmentEndTime = nextSegment
+                        ? nextSegment.time
+                        : videoDuration || segment.time + 5;
+                    const isLoopingThisSegment =
+                        isLooping && currentLoopStartTime === segment.time;
+                    const isSelectedForAction = selectedForActionIndex === index;
+                    const isButtonVisible =
+                        isLoopingThisSegment || isSelectedForAction;
 
-                const isButtonVisible =
-                    isLoopingThisSegment || isSelectedForAction;
-
-                return (
-                    <p
-                        key={index}
-                        ref={(el) => {
-                            if (segmentRefs.current)
-                                segmentRefs.current[index] = el;
-                        }}
-                        // 라인 전체 클릭 시 핸들러 호출
-                        onClick={() => handleLineClick(index)}
-                        className={`relative group flex items-center min-h-[44px] cursor-pointer transition-all duration-300 pl-2 pr-2 p-2
-                            ${
-                                isCurrent
-                                    ? "transform scale-103 bg-blue-50"
-                                    : "bg-white"
-                            }
-                            ${
-                                isLoopingThisSegment
-                                    ? "ring-2 ring-purple-300"
-                                    : ""
-                            }
-                        `}
-                    >
-                        {/* 자식 span의 onClick을 제거하여 이벤트가 부모 p 태그로 전파되게 함 */}
-                        <span>
+                    return (
+                        <p
+                            key={index}
+                            ref={(el) => {
+                                if (segmentRefs.current)
+                                    segmentRefs.current[index] = el;
+                            }}
+                            onClick={() => handleLineClick(index)}
+                            className={`relative group flex items-start min-h-[44px] cursor-pointer transition-all duration-300 pl-2 pr-2 py-2
+                                ${
+                                    isCurrent
+                                        ? "transform scale-103 bg-blue-50"
+                                        : "bg-white"
+                                }
+                                ${
+                                    isLoopingThisSegment
+                                        ? "ring-2 ring-purple-300"
+                                        : ""
+                                }
+                            `}
+                        >
                             <span
-                                className="text-blue-500 hover:text-purple-600 transition-colors duration-300"
-                                // 타임스탬프 클릭은 seek만 하고, 이벤트 전파를 막아 handleLineClick이 호출되지 않게 함
+                                className="text-blue-500 hover:text-purple-600 transition-colors duration-300 mr-2"
                                 onClick={(e) => {
                                     e.stopPropagation();
                                     onSeek(segment.time);
@@ -431,105 +507,119 @@ const TranscriptViewer = ({
                                     const seconds = Math.floor(segment.time % 60);
 
                                     return `${
-                                        hours > 0 ? `${hours}:` : ''
-                                    }${
-                                        String(minutes).padStart(2, "0")
-                                    }:${String(seconds).padStart(2, "0")}`;
+                                        hours > 0 ? `${String(hours).padStart(2, '0')}:` : ''
+                                    }${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
                                 })()}
                                 ]
                             </span>{" "}
                             <span
                                 className={`${
                                     isCurrent ? "font-medium" : "text-gray-600"
-                                } whitespace-pre-wrap`}
+                                } whitespace-pre-wrap flex-1`}
                             >
-                                {segment.text}
+                                {renderHighlightedText(segment.text)}
                             </span>
-                        </span>
 
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                // 버튼 클릭 시 자동 숨김 타이머가 있다면 취소
-                                if (hideButtonTimerRef.current) {
-                                    clearTimeout(hideButtonTimerRef.current);
-                                }
-                                onLoopToggle(segment.time, segmentEndTime);
-                            }}
-                            className={`
-                                absolute right-3 top-1/2 transform -translate-y-1/2 p-2 rounded-full transition-all duration-300
-                                ${
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (hideButtonTimerRef.current) {
+                                        clearTimeout(hideButtonTimerRef.current);
+                                    }
+                                    onLoopToggle(segment.time, segmentEndTime);
+                                }}
+                                className={`
+                                    absolute right-3 top-1/2 transform -translate-y-1/2 p-2 rounded-full transition-all duration-300
+                                    ${
+                                        isLoopingThisSegment
+                                            ? "bg-blue-100 bg-opacity-50 text-blue-500"
+                                            : "bg-gray-200 bg-opacity-50 text-gray-500 hover:bg-blue-200"
+                                    }
+                                    ${
+                                        isButtonVisible
+                                            ? "opacity-100 pointer-events-auto"
+                                            : "opacity-0 pointer-events-none md:group-hover:opacity-100 md:group-hover:pointer-events-auto"
+                                    }
+                                `}
+                                title={
                                     isLoopingThisSegment
-                                        ? "bg-blue-100 bg-opacity-50 text-blue-500"
-                                        : "bg-gray-200 bg-opacity-50 text-gray-500 hover:bg-blue-200"
+                                        ? "구간 반복 중지"
+                                        : "구간 반복 시작"
                                 }
-                                ${
-                                    isButtonVisible
-                                        ? "opacity-100 pointer-events-auto"
-                                        : "opacity-0 pointer-events-none md:group-hover:opacity-100 md:group-hover:pointer-events-auto"
-                                }
-                            `}
-                            title={
-                                isLoopingThisSegment
-                                    ? "구간 반복 중지"
-                                    : "구간 반복 시작"
-                            }
-                        >
-                            <ArrowPathIcon
-                                className={`h-4 w-4 ${
-                                    isLoopingThisSegment ? "animate-spin" : ""
-                                }`}
-                            />
-                        </button>
-                    </p>
-                );
-            })}
+                            >
+                                <ArrowPathIcon
+                                    className={`h-4 w-4 ${
+                                        isLoopingThisSegment ? "animate-spin" : ""
+                                    }`}
+                                />
+                            </button>
+                        </p>
+                    );
+                })}
 
-            {showTooltip && (
-                <div
-                    ref={tooltipRef}
-                    className="absolute z-20 bg-black bg-opacity-80 text-white text-sm rounded-lg shadow-lg py-2 px-3 flex flex-col space-y-2 max-w-xs min-w-[120px]"
-                    style={tooltipStyles}
-                >
-                    {isInterpreting ? (
-                        <p>AI가 해석 중...</p>
-                    ) : interpretationResult ? (
-                        <div className="flex flex-col space-y-2">
-                            <p className="font-bold">AI 해석:</p>
-                            <p>{interpretationResult}</p>
-                            <div className="flex justify-end space-x-2 mt-2">
-                                {user && (
+                {showTooltip && (
+                    <div
+                        ref={tooltipRef}
+                        className="absolute z-20 bg-black bg-opacity-80 text-white text-sm rounded-lg shadow-lg py-2 px-3 flex flex-col space-y-2 max-w-xs min-w-[120px]"
+                        style={tooltipStyles}
+                    >
+                        {isInterpreting ? (
+                            <p>AI가 해석 중...</p>
+                        ) : interpretationResult ? (
+                            <div className="flex flex-col space-y-2">
+                                <p className="font-bold">AI 해석:</p>
+                                <p>{interpretationResult}</p>
+                                <div className="flex justify-end space-x-2 mt-2">
+                                    {user && (
+                                        <button
+                                            onMouseDown={handleSaveInterpretation}
+                                            className="bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded-md text-xs"
+                                        >
+                                            저장
+                                        </button>
+                                    )}
                                     <button
-                                        onMouseDown={handleSaveInterpretation}
-                                        className="bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded-md text-xs"
+                                        onMouseDown={() => setShowTooltip(false)}
+                                        className="bg-gray-600 hover:bg-gray-700 px-2 py-1 rounded-md text-xs"
                                     >
-                                        저장
+                                        닫기
                                     </button>
-                                )}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex space-x-2">
                                 <button
-                                    onMouseDown={() => setShowTooltip(false)}
-                                    className="bg-gray-600 hover:bg-gray-700 px-2 py-1 rounded-md text-xs"
+                                    onMouseDown={handleAIInterpretation}
+                                    className="hover:bg-gray-700 px-2 py-1 rounded-md"
                                 >
-                                    닫기
+                                    AI 해석
+                                </button>
+                                <button
+                                    onClick={() => setShowTooltip(false)}
+                                    className="hover:bg-gray-700 px-2 py-1 rounded-md"
+                                >
+                                    X
                                 </button>
                             </div>
-                        </div>
-                    ) : (
-                        <div className="flex space-x-2">
-                            <button
-                                onMouseDown={handleAIInterpretation}
-                                className="hover:bg-gray-700 px-2 py-1 rounded-md"
-                            >
-                                AI 해석
-                            </button>
-                            <button
-                                onClick={() => setShowTooltip(false)}
-                                className="hover:bg-gray-700 px-2 py-1 rounded-md"
-                            >
-                                X
-                            </button>
-                        </div>
-                    )}
+                        )}
+                    </div>
+                )}
+            </div>
+
+            {/* [수정 2] 하이라이트 클릭 툴팁에 ref 할당 및 pointer-events-auto 추가 */}
+            {tooltipInfo?.visible && (
+                <div
+                    ref={highlightTooltipRef} // 올바른 ref 사용
+                    className="fixed z-50 bg-gray-800 text-white text-sm rounded-lg shadow-xl py-2 px-4 max-w-xs pointer-events-auto" // [수정] absolute -> fixed
+                    style={{
+                        top: `${tooltipInfo.y}px`,
+                        left: `${tooltipInfo.x}px`,
+                        transform: 'translateX(-50%)', // 중앙 정렬
+                        pointerEvents: 'auto', // [추가] 명시적으로 pointer-events: auto 설정
+                    }}
+                    onClick={e => e.stopPropagation()} // 툴팁 클릭 시 닫히지 않도록 함
+                >
+                    {tooltipInfo.content}
                 </div>
             )}
 
@@ -547,7 +637,7 @@ const TranscriptViewer = ({
                     onClose={() => setShowAlert(false)}
                 />
             )}
-        </div>
+        </>
     );
 };
 

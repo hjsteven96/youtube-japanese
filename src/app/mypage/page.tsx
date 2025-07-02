@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
     onAuthStateChanged,
     User,
@@ -75,6 +75,20 @@ const MyPage = () => {
         null
     );
     const router = useRouter();
+
+    const [searchTerm, setSearchTerm] = useState("");
+
+    const filteredExpressions = useMemo(() => {
+        if (!searchTerm) {
+            return savedExpressions;
+        }
+        const lowerCaseSearchTerm = searchTerm.toLowerCase();
+        return savedExpressions.filter(
+            (exp) =>
+                exp.originalText.toLowerCase().includes(lowerCaseSearchTerm) ||
+                exp.interpretation.toLowerCase().includes(lowerCaseSearchTerm)
+        );
+    }, [savedExpressions, searchTerm]);
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
@@ -429,15 +443,34 @@ const MyPage = () => {
                 </CardContent>
             </Card>
 
+            {/* 검색 입력 필드 */}
+            <div className="flex items-center space-x-2 mb-4">
+                <Input
+                    type="text"
+                    placeholder="저장한 표현 검색..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="flex-1"
+                />
+                {searchTerm && (
+                    <Button variant="outline" onClick={() => setSearchTerm("")}>
+                        초기화
+                    </Button>
+                )}
+            </div>
+
             {/* 저장한 표현 */}
             <Card>
                 <CardHeader>
                     <CardTitle className="text-xl">저장한 표현</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    {savedExpressions.length > 0 ? (
+                    {filteredExpressions.length > 0 ? (
                         <div className="space-y-4">
-                            {savedExpressions.map((exp) => (
+                            <p className="text-sm text-gray-500 mb-2">
+                                {filteredExpressions.length}개 중 {savedExpressions.length}개 검색됨
+                            </p>
+                            {filteredExpressions.map((exp) => (
                                 <div
                                     key={exp.id}
                                     className="p-4 border border-gray-200 rounded-lg hover:bg-gray-50"
@@ -481,7 +514,7 @@ const MyPage = () => {
                         </div>
                     ) : (
                         <p className="text-gray-500">
-                            아직 저장한 표현이 없습니다.
+                            {searchTerm ? "검색 결과가 없습니다." : "아직 저장한 표현이 없습니다."}
                         </p>
                     )}
                 </CardContent>
