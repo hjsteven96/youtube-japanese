@@ -90,7 +90,7 @@ const TranscriptViewer = ({
         title: "",
         subtitle: "",
     });
-    
+
     const [tooltipInfo, setTooltipInfo] = useState<{ 
         visible: boolean; 
         content: string; 
@@ -307,13 +307,13 @@ const TranscriptViewer = ({
             }
 
             const selectedText = selection.toString().trim();
-            const containerNode = transcriptContainerRef.current;
+                const containerNode = transcriptContainerRef.current;
 
             if (
                 selectedText &&
                 selectedText.length > 0 &&
                 containerNode.contains(selection.anchorNode!)
-            ) {
+                ) {
                 setInterpretationResult(null);
                 setTooltipText(selectedText);
 
@@ -347,7 +347,7 @@ const TranscriptViewer = ({
             document.removeEventListener("selectionchange", handleSelection);
         };
     }, [isInterpreting]);
-    
+
     const handleLineClick = (index: number) => {
         if (hideButtonTimerRef.current) {
             clearTimeout(hideButtonTimerRef.current);
@@ -362,7 +362,7 @@ const TranscriptViewer = ({
             }, 3000);
         }
     };
-    
+
     const handleSaveInterpretation = async () => {
         if (!user || !tooltipText || !interpretationResult || !youtubeUrl) {
             setAlertMessage({
@@ -455,50 +455,50 @@ const TranscriptViewer = ({
 
     return (
         <>
-            <div
-                ref={transcriptContainerRef}
-                className="text-gray-700 relative select-text"
-                onContextMenu={(e) => e.preventDefault()}
-            >
+        <div
+            ref={transcriptContainerRef}
+            className="text-gray-700 relative select-text"
+            onContextMenu={(e) => e.preventDefault()}
+        >
                 {/* Tip 텍스트 추가 */}
                 {parsedTranscript.length > 0 && (
                     <p className="text-sm text-gray-500 mb-4 px-2"> 
                         Tip: 모르는 단어나 문장을 드래그하여 AI 해석을 확인해보세요!
                     </p>
                 )}
-                {parsedTranscript.map((segment, index) => {
-                    const isCurrent = index === activeSegmentIndex;
-                    const nextSegment = parsedTranscript[index + 1];
-                    const segmentEndTime = nextSegment
-                        ? nextSegment.time
-                        : videoDuration || segment.time + 5;
-                    const isLoopingThisSegment =
-                        isLooping && currentLoopStartTime === segment.time;
-                    const isSelectedForAction = selectedForActionIndex === index;
-                    const isButtonVisible =
-                        isLoopingThisSegment || isSelectedForAction;
+            {parsedTranscript.map((segment, index) => {
+                const isCurrent = index === activeSegmentIndex;
+                const nextSegment = parsedTranscript[index + 1];
+                const segmentEndTime = nextSegment
+                    ? nextSegment.time
+                    : videoDuration || segment.time + 5;
+                const isLoopingThisSegment =
+                    isLooping && currentLoopStartTime === segment.time;
+                const isSelectedForAction = selectedForActionIndex === index;
+                const isButtonVisible =
+                    isLoopingThisSegment || isSelectedForAction;
 
-                    return (
-                        <p
-                            key={index}
-                            ref={(el) => {
-                                if (segmentRefs.current)
-                                    segmentRefs.current[index] = el;
-                            }}
-                            onClick={() => handleLineClick(index)}
+                return (
+                    <p
+                        key={index}
+                        ref={(el) => {
+                            if (segmentRefs.current)
+                                segmentRefs.current[index] = el;
+                        }}
+                        onClick={() => handleLineClick(index)}
                             className={`relative group flex items-start min-h-[44px] cursor-pointer transition-all duration-300 pl-2 pr-2 py-2
-                                ${
-                                    isCurrent
-                                        ? "transform scale-103 bg-blue-50"
-                                        : "bg-white"
-                                }
-                                ${
-                                    isLoopingThisSegment
-                                        ? "ring-2 ring-purple-300"
-                                        : ""
-                                }
-                            `}
-                        >
+                            ${
+                                isCurrent
+                                    ? "transform scale-103 bg-blue-50"
+                                    : "bg-white"
+                            }
+                            ${
+                                isLoopingThisSegment
+                                    ? "ring-2 ring-purple-300"
+                                    : ""
+                            }
+                        `}
+                    >
                             <span
                                 className="text-blue-500 hover:text-purple-600 transition-colors duration-300 mr-2"
                                 onClick={(e) => {
@@ -524,90 +524,90 @@ const TranscriptViewer = ({
                                 } whitespace-pre-wrap flex-1`}
                             >
                                 {renderHighlightedText(segment.text)}
-                            </span>
+                        </span>
 
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (hideButtonTimerRef.current) {
-                                        clearTimeout(hideButtonTimerRef.current);
-                                    }
-                                    onLoopToggle(segment.time, segmentEndTime);
-                                }}
-                                className={`
-                                    absolute right-3 top-1/2 transform -translate-y-1/2 p-2 rounded-full transition-all duration-300
-                                    ${
-                                        isLoopingThisSegment
-                                            ? "bg-blue-100 bg-opacity-50 text-blue-500"
-                                            : "bg-gray-200 bg-opacity-50 text-gray-500 hover:bg-blue-200"
-                                    }
-                                    ${
-                                        isButtonVisible
-                                            ? "opacity-100 pointer-events-auto"
-                                            : "opacity-0 pointer-events-none md:group-hover:opacity-100 md:group-hover:pointer-events-auto"
-                                    }
-                                `}
-                                title={
-                                    isLoopingThisSegment
-                                        ? "구간 반복 중지"
-                                        : "구간 반복 시작"
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (hideButtonTimerRef.current) {
+                                    clearTimeout(hideButtonTimerRef.current);
                                 }
-                            >
-                                <ArrowPathIcon
-                                    className={`h-4 w-4 ${
-                                        isLoopingThisSegment ? "animate-spin" : ""
-                                    }`}
-                                />
-                            </button>
-                        </p>
-                    );
-                })}
+                                onLoopToggle(segment.time, segmentEndTime);
+                            }}
+                            className={`
+                                absolute right-3 top-1/2 transform -translate-y-1/2 p-2 rounded-full transition-all duration-300
+                                ${
+                                    isLoopingThisSegment
+                                        ? "bg-blue-100 bg-opacity-50 text-blue-500"
+                                        : "bg-gray-200 bg-opacity-50 text-gray-500 hover:bg-blue-200"
+                                }
+                                ${
+                                    isButtonVisible
+                                        ? "opacity-100 pointer-events-auto"
+                                        : "opacity-0 pointer-events-none md:group-hover:opacity-100 md:group-hover:pointer-events-auto"
+                                }
+                            `}
+                            title={
+                                isLoopingThisSegment
+                                    ? "구간 반복 중지"
+                                    : "구간 반복 시작"
+                            }
+                        >
+                            <ArrowPathIcon
+                                className={`h-4 w-4 ${
+                                    isLoopingThisSegment ? "animate-spin" : ""
+                                }`}
+                            />
+                        </button>
+                    </p>
+                );
+            })}
 
-                {showTooltip && (
-                    <div
-                        ref={tooltipRef}
-                        className="absolute z-20 bg-black bg-opacity-80 text-white text-sm rounded-lg shadow-lg py-2 px-3 flex flex-col space-y-2 max-w-xs min-w-[120px]"
+            {showTooltip && (
+                <div
+                    ref={tooltipRef}
+                    className="absolute z-20 bg-black bg-opacity-80 text-white text-sm rounded-lg shadow-lg py-2 px-3 flex flex-col space-y-2 max-w-xs min-w-[120px]"
                         style={tooltipStyles}
-                    >
-                        {isInterpreting ? (
-                            <p>AI가 해석 중...</p>
-                        ) : interpretationResult ? (
-                            <div className="flex flex-col space-y-2">
-                                <p className="font-bold">AI 해석:</p>
-                                <p>{interpretationResult}</p>
-                                <div className="flex justify-end space-x-2 mt-2">
-                                    {user && (
-                                        <button
-                                            onMouseDown={handleSaveInterpretation}
-                                            className="bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded-md text-xs"
-                                        >
-                                            저장
-                                        </button>
-                                    )}
+                >
+                    {isInterpreting ? (
+                        <p>AI가 해석 중...</p>
+                    ) : interpretationResult ? (
+                        <div className="flex flex-col space-y-2">
+                            <p className="font-bold">AI 해석:</p>
+                            <p>{interpretationResult}</p>
+                            <div className="flex justify-end space-x-2 mt-2">
+                                {user && (
                                     <button
-                                        onMouseDown={() => setShowTooltip(false)}
-                                        className="bg-gray-600 hover:bg-gray-700 px-2 py-1 rounded-md text-xs"
+                                        onMouseDown={handleSaveInterpretation}
+                                        className="bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded-md text-xs"
                                     >
-                                        닫기
+                                        저장
                                     </button>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="flex space-x-2">
+                                )}
                                 <button
-                                    onMouseDown={handleAIInterpretation}
-                                    className="hover:bg-gray-700 px-2 py-1 rounded-md"
+                                    onMouseDown={() => setShowTooltip(false)}
+                                    className="bg-gray-600 hover:bg-gray-700 px-2 py-1 rounded-md text-xs"
                                 >
-                                    AI 해석
-                                </button>
-                                <button
-                                    onClick={() => setShowTooltip(false)}
-                                    className="hover:bg-gray-700 px-2 py-1 rounded-md"
-                                >
-                                    X
+                                    닫기
                                 </button>
                             </div>
-                        )}
+                        </div>
+                    ) : (
+                        <div className="flex space-x-2">
+                            <button
+                                onMouseDown={handleAIInterpretation}
+                                className="hover:bg-gray-700 px-2 py-1 rounded-md"
+                            >
+                                AI 해석
+                            </button>
+                            <button
+                                onClick={() => setShowTooltip(false)}
+                                className="hover:bg-gray-700 px-2 py-1 rounded-md"
+                            >
+                                X
+                            </button>
+                        </div>
+                    )}
                     </div>
                 )}
             </div>

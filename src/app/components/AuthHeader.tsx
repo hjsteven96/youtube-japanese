@@ -11,38 +11,55 @@ import {
 } from "firebase/auth";
 import { auth } from "../../lib/firebase";
 import Link from "next/link"; // 로고 클릭 시 홈으로 이동
+import LoginModal from "./LoginModal"; // LoginModal import
 
 export default function AuthHeader() {
     const [user, setUser] = useState<User | null>(null);
     const [loadingAuth, setLoadingAuth] = useState(true); // 인증 초기화 로딩 상태
+    const [isLoginModalOpen, setIsLoginModalOpen] = useState(false); // 로그인 모달 상태
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
             setUser(currentUser);
             setLoadingAuth(false);
+            // 로그인 성공 시 모달 닫기
+            if (currentUser && isLoginModalOpen) {
+                setIsLoginModalOpen(false);
+            }
         });
         return () => unsubscribe();
-    }, []);
+    }, [isLoginModalOpen]);
 
     const handleGoogleSignIn = async () => {
         const provider = new GoogleAuthProvider();
         try {
             await signInWithPopup(auth, provider);
-            // 로그인 성공 시 별도 처리 불필요 (onAuthStateChanged가 알아서 user 상태 업데이트)
+            // 로그인 성공 시 onAuthStateChanged에서 모달 닫기 처리
         } catch (error: any) {
             console.error("Google 로그인 실패:", error);
-            alert(`로그인 중 오류 발생: ${error.message}`);
+            // 사용자 팝업 차단 등으로 인한 에러는 alert하지 않음
+            if (error.code !== 'auth/popup-closed-by-user') {
+                alert(`로그인 중 오류 발생: ${error.message}`);
+            }
         }
     };
 
     const handleGoogleSignOut = async () => {
         try {
             await signOut(auth);
-            // 로그아웃 성공 시 별도 처리 불필요 (onAuthStateChanged가 알아서 user 상태 업데이트)
+            // 로그아웃 성공 시 별도 처리 불필요
         } catch (error: any) {
             console.error("로그아웃 실패:", error);
             alert(`로그아웃 중 오류 발생: ${error.message}`);
         }
+    };
+
+    const handleLoginClick = () => {
+        setIsLoginModalOpen(true);
+    };
+
+    const handleCloseLoginModal = () => {
+        setIsLoginModalOpen(false);
     };
 
     return (
@@ -72,17 +89,26 @@ export default function AuthHeader() {
                                 </Link>{" "}
                                 님!
                             </span>
+                            <button
+                                onClick={handleGoogleSignOut}
+                                className="btn-secondary text-sm py-2 px-4"
+                            >
+                                로그아웃
+                            </button>
                         </>
                     ) : (
                         <button
-                            onClick={handleGoogleSignIn}
+                            onClick={handleLoginClick} // 모달 열기 함수 호출
                             className="btn-primary text-sm py-2 px-4"
                         >
-                            Google로 시작하기
+                            로그인 / 회원가입
                         </button>
                     )}
                 </div>
             </nav>
+
+            {/* LoginModal 컴포넌트 추가 */}
+            <LoginModal isOpen={isLoginModalOpen} onClose={handleCloseLoginModal} />
         </header>
     );
 }
