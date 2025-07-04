@@ -9,7 +9,7 @@ import AuthHeader from "./components/AuthHeader";
 import RecentVideos from "./components/RecentVideos";
 import TrendingVideos from "./components/TrendingVideos";
 import HomeClientContent from "./HomeClientContent";
-import ContactButton from "./components/ContactButton";
+// import ContactButton from "./components/ContactButton"; // ContactButton import 제거
 import { AuroraText } from "@/components/magicui/aurora-text";
 // 2. 데이터 타입을 정의하고 다른 곳에서 쓸 수 있도록 export합니다.
 export interface VideoInfo {
@@ -91,9 +91,9 @@ export default async function Home() {
                 </div>
 
                 {/* 문의하기 버튼 (정적 UI) */}
-                <div className="fixed bottom-6 right-6 z-50">
+                {/* <div className="fixed bottom-6 right-6 z-50">
                     <ContactButton></ContactButton>
-                </div>
+                </div> */}
             </div>
         </>
     );

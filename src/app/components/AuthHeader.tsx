@@ -89,12 +89,7 @@ export default function AuthHeader() {
                                 </Link>{" "}
                                 님!
                             </span>
-                            <button
-                                onClick={handleGoogleSignOut}
-                                className="btn-secondary text-sm py-2 px-4"
-                            >
-                                로그아웃
-                            </button>
+           
                         </>
                     ) : (
                         <button

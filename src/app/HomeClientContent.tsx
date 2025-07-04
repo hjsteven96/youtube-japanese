@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from "react";
 import ReactPlayer from "react-player";
 import Link from "next/link";
 import { onAuthStateChanged, User } from "firebase/auth";
+import * as ChannelService from '@channel.io/channel-web-sdk-loader';
 
 import { auth } from "@/lib/firebase";
 import { createUserProfile } from "@/lib/user";
@@ -51,6 +52,17 @@ export default function HomeClientContent() {
             }
         });
         return () => unsubscribe();
+    }, []);
+
+    useEffect(() => {
+        ChannelService.loadScript();
+        ChannelService.boot({
+            "pluginKey": "5e180a54-27d8-4d1a-a885-52f777a61cea"
+        });
+
+        return () => {
+            ChannelService.shutdown();
+        };
     }, []);
 
     const extractVideoId = (url: string): string | null => {
@@ -243,7 +255,7 @@ export default function HomeClientContent() {
                 <div className="mb-6">
                     <label
                         htmlFor="youtubeUrl"
-                        className="block text-gray-700 text-sm font-semibold mb-3 flex items-center"
+                        className="block text-gray-700 text-sm font-semibold mb-3 items-center"
                     >
                         <span className="mr-2">🎬</span> YouTube 링크 입력
                     </label>
