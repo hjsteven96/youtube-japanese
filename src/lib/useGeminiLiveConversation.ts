@@ -297,7 +297,7 @@ export const useGeminiLiveConversation = ({
 
             const initialPromptText =
                 transcript && geminiAnalysis
-                    ? `Act as my English coach: start by asking me "${question}" based on the video "${transcript}, and then keep the conversation going with only follow-up questions, never answering the question yourself. KEEP ASKING question so that user can practice English speaking "`
+                    ? `Act as my English coach: start by asking me "${question}" based on the video "${geminiAnalysis.summary}, and then keep the conversation going with only follow-up questions, never answering the question yourself. KEEP ASKING question so that user can practice English speaking "`
                     : `You are an English learning assistant. Your role is to help the user learn English by having a conversation. The user will now answer this question: "${question}"`;
 
             newSession.sendClientContent({
