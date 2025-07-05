@@ -6,6 +6,7 @@ import { auth } from "@/lib/firebase";
 import { XMarkIcon } from "@heroicons/react/24/solid";
 import Link from "next/link";
 import { createPortal } from "react-dom";
+import { logAnalyticsEvent } from "@/lib/firebase"; // logAnalyticsEvent 임포트 추가
 
 interface LoginModalProps {
     isOpen: boolean;
@@ -17,11 +18,23 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
         const provider = new GoogleAuthProvider();
         try {
             await signInWithPopup(auth, provider);
+            // 로그인 성공 시 이벤트 로깅
+            logAnalyticsEvent("login_success", {
+                auth_method: "google",
+            });
             // 로그인 성공 시 모달 닫기
             onClose();
         } catch (error: any) {
             console.error("Google 로그인 실패:", error);
-            alert(`로그인 중 오류 발생: ${error.message}`);
+            if (error.code !== "auth/popup-closed-by-user") {
+                alert(`로그인 중 오류 발생: ${error.message}`);
+                // 로그인 실패 시 이벤트 로깅
+                logAnalyticsEvent("login_failure", {
+                    auth_method: "google",
+                    error_code: error.code,
+                    error_message: error.message,
+                });
+            }
         }
     };
 
@@ -58,7 +71,11 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                                 Ling:to
                             </h2>
                             <p className="text-base text-gray-600 mt-6">
-                                5초만에 로그인하고 <span className="font-semibold text-blue-600">유튜브 영상</span>으로 재밌게 영어 공부하세요!
+                                5초만에 로그인하고{" "}
+                                <span className="font-semibold text-blue-600">
+                                    유튜브 영상
+                                </span>
+                                으로 재밌게 영어 공부하세요!
                             </p>
                         </div>
 
@@ -67,7 +84,11 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                                 onClick={handleGoogleSignIn}
                                 className="w-full flex items-center justify-center gap-3 px-6 py-3 border border-gray rounded-lg text-base font-medium text-gray-200 bg-black hover:bg-gray-50 transition-colors shadow-sm"
                             >
-                                <img src="https://img.icons8.com/color/16/000000/google-logo.png" alt="Google logo" className="h-5 w-5" />
+                                <img
+                                    src="https://img.icons8.com/color/16/000000/google-logo.png"
+                                    alt="Google logo"
+                                    className="h-5 w-5"
+                                />
                                 <span>구글 계정으로 시작하기</span>
                             </button>
                             {/* 네이버 로그인 버튼은 임시로 주석 처리하거나 제거 (요청에 없었음) */}
@@ -77,20 +98,32 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                                 <img src="https://img.icons8.com/color/16/000000/naver.png" alt="Naver logo" className="h-5 w-5" />
                                 <span>네이버 계정으로 시작하기</span>
                             </button> */}
-                          
                         </div>
 
                         <div className="mt-8 text-center text-xs text-gray-500">
-                            <p>로그인하면 하단 정책에 모두 동의하는 것으로 간주합니다.</p>
+                            <p>
+                                로그인하면 하단 정책에 모두 동의하는 것으로
+                                간주합니다.
+                            </p>
                             <div className="flex justify-center gap-4 mt-2">
-                                <Link href="#" className="underline hover:text-gray-700">이용약관</Link>
-                                <Link href="#" className="underline hover:text-gray-700">개인정보처리방침</Link>
+                                <Link
+                                    href="#"
+                                    className="underline hover:text-gray-700"
+                                >
+                                    이용약관
+                                </Link>
+                                <Link
+                                    href="#"
+                                    className="underline hover:text-gray-700"
+                                >
+                                    개인정보처리방침
+                                </Link>
                             </div>
                         </div>
                     </motion.div>
                 </motion.div>
             )}
-        </AnimatePresence>
-        , document.body
+        </AnimatePresence>,
+        document.body
     );
-} 
+}

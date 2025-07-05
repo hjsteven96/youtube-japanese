@@ -5,9 +5,9 @@ import { useState, useEffect, useCallback } from "react";
 import ReactPlayer from "react-player";
 import Link from "next/link";
 import { onAuthStateChanged, User } from "firebase/auth";
-import * as ChannelService from '@channel.io/channel-web-sdk-loader';
+import * as ChannelService from "@channel.io/channel-web-sdk-loader";
 
-import { auth } from "@/lib/firebase";
+import { auth, logAnalyticsEvent } from "@/lib/firebase";
 import { createUserProfile } from "@/lib/user";
 import { PLANS, UserProfile } from "@/lib/plans";
 import Alert from "./components/Alert";
@@ -57,12 +57,17 @@ export default function HomeClientContent() {
     useEffect(() => {
         ChannelService.loadScript();
         ChannelService.boot({
-            "pluginKey": "5e180a54-27d8-4d1a-a885-52f777a61cea"
+            pluginKey: "5e180a54-27d8-4d1a-a885-52f777a61cea",
         });
 
         return () => {
             ChannelService.shutdown();
         };
+    }, []);
+
+    // Firebase Analytics 페이지 뷰 이벤트 로깅
+    useEffect(() => {
+        logAnalyticsEvent("page_view", { page_title: "Home Page" });
     }, []);
 
     const extractVideoId = (url: string): string | null => {
@@ -180,6 +185,12 @@ export default function HomeClientContent() {
         }
 
         if (videoInfo) {
+            // 이벤트 로깅
+            logAnalyticsEvent("analyze_button_click", {
+                video_id: videoInfo.videoId,
+                video_title: videoInfo.title,
+                user_plan: userProfile?.plan,
+            });
             window.location.href = `/analysis/${videoInfo.videoId}`;
         }
     };
@@ -235,7 +246,9 @@ export default function HomeClientContent() {
 
                         <Link
                             href={
-                                videoInfo ? `/analysis/${videoInfo.videoId}` : "#"
+                                videoInfo
+                                    ? `/analysis/${videoInfo.videoId}`
+                                    : "#"
                             }
                             onClick={handleAnalysisClick}
                             className={`block text-center w-full bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white font-bold py-3 mb-8 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 ${

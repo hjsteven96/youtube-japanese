@@ -9,6 +9,7 @@ import {
 } from "@google/genai";
 import { AudioPlaybackScheduler } from "./AudioPlaybackScheduler";
 import { User } from "firebase/auth";
+import { logAnalyticsEvent } from "./firebase"; // logAnalyticsEvent 임포트 추가
 
 // 타입 정의
 interface VideoAnalysis {
@@ -42,7 +43,7 @@ interface UseGeminiLiveConversationProps {
 
 interface UseGeminiLiveConversationResult {
     isRecording: boolean;
-    isConnecting: boolean; 
+    isConnecting: boolean;
     isPlayingAudio: boolean;
     selectedQuestion: string | null;
     handleStartConversation: (question: string) => Promise<void>;
@@ -61,7 +62,7 @@ export const useGeminiLiveConversation = ({
     user,
     onShowAlert,
 }: UseGeminiLiveConversationProps): UseGeminiLiveConversationResult => {
-    const [isConnecting, setIsConnecting] = useState(false); 
+    const [isConnecting, setIsConnecting] = useState(false);
     const [isRecording, setIsRecording] = useState(false);
     const [isPlayingAudio, setIsPlayingAudio] = useState(false);
     const [geminiLiveSession, setGeminiLiveSession] = useState<Session | null>(
@@ -83,88 +84,91 @@ export const useGeminiLiveConversation = ({
 
     const handleStopConversation = (callerId?: string): Promise<void> => {
         return new Promise((resolve) => {
-        if (isStoppingRef.current) {
-            console.log(`Stop process already initiated. Called by: ${callerId}`);
-            resolve();
-            return;
-        }
-        isStoppingRef.current = true;
-        console.log(`handleStopConversation called from: ${callerId || "unknown"}`);
-        setIsRecording(false);
-        setIsPlayingAudio(false);
-
-        if (audioWorkletNodeRef.current) {
-            audioWorkletNodeRef.current.port.onmessage = null;
-            audioWorkletNodeRef.current.disconnect();
-            audioWorkletNodeRef.current = null;
-        }
-
-        if (mediaStreamRef.current) {
-            mediaStreamRef.current.getTracks().forEach((track) => track.stop());
-            mediaStreamRef.current = null;
-        }
-
-        if (
-            audioContextRef.current &&
-            audioContextRef.current.state !== "closed"
-        ) {
-            audioContextRef.current.close();
-            audioContextRef.current = null;
-        }
-        // 타이머 및 시간 기록 정리 로직 순서 및 내용 확인
-        if (sessionTimerRef.current) {
-            clearTimeout(sessionTimerRef.current);
-            sessionTimerRef.current = null;
-        }
-
-        if (conversationStartTimeRef.current) {
-            const duration = (Date.now() - conversationStartTimeRef.current) / 1000;
-            onConversationEnd(Math.round(duration));
-            conversationStartTimeRef.current = null;
-        }
-
-        
-       
-        if (playbackScheduler.current) {
-            playbackScheduler.current.stop();
-            playbackScheduler.current = null;
-        }
-        if (geminiLiveSession) {
-            try {
-                geminiLiveSession.close();
-            } catch (e) {
-                console.warn("Session might be already closed.", e);
+            if (isStoppingRef.current) {
+                console.log(
+                    `Stop process already initiated. Called by: ${callerId}`
+                );
+                resolve();
+                return;
             }
-            setGeminiLiveSession(null);
-        }
-        if (audioPlayingTimer.current) {
-            clearTimeout(audioPlayingTimer.current);
-        }
+            isStoppingRef.current = true;
+            console.log(
+                `handleStopConversation called from: ${callerId || "unknown"}`
+            );
+            setIsRecording(false);
+            setIsPlayingAudio(false);
 
+            if (audioWorkletNodeRef.current) {
+                audioWorkletNodeRef.current.port.onmessage = null;
+                audioWorkletNodeRef.current.disconnect();
+                audioWorkletNodeRef.current = null;
+            }
 
-        setTimeout(() => {
-           
-            console.log("Stop process finished.");
+            if (mediaStreamRef.current) {
+                mediaStreamRef.current
+                    .getTracks()
+                    .forEach((track) => track.stop());
+                mediaStreamRef.current = null;
+            }
+
+            if (
+                audioContextRef.current &&
+                audioContextRef.current.state !== "closed"
+            ) {
+                audioContextRef.current.close();
+                audioContextRef.current = null;
+            }
+            // 타이머 및 시간 기록 정리 로직 순서 및 내용 확인
+            if (sessionTimerRef.current) {
+                clearTimeout(sessionTimerRef.current);
+                sessionTimerRef.current = null;
+            }
+
+            if (conversationStartTimeRef.current) {
+                const duration =
+                    (Date.now() - conversationStartTimeRef.current) / 1000;
+                onConversationEnd(Math.round(duration));
+                conversationStartTimeRef.current = null;
+            }
+
+            if (playbackScheduler.current) {
+                playbackScheduler.current.stop();
+                playbackScheduler.current = null;
+            }
+            if (geminiLiveSession) {
+                try {
+                    geminiLiveSession.close();
+                } catch (e) {
+                    console.warn("Session might be already closed.", e);
+                }
+                setGeminiLiveSession(null);
+            }
+            if (audioPlayingTimer.current) {
+                clearTimeout(audioPlayingTimer.current);
+            }
+
+            setTimeout(() => {
+                console.log("Stop process finished.");
                 resolve();
                 isStoppingRef.current = false;
-        }, 100); 
-    });
-};
+            }, 100);
+        });
+    };
 
     const handleStartConversation = async (question: string) => {
-       
         if (isConnecting || isRecording) {
-            console.log("Conversation start requested, but already connecting or recording.");
+            console.log(
+                "Conversation start requested, but already connecting or recording."
+            );
             return;
         }
 
-       
         try {
             setIsConnecting(true); // << 연결 시작 상태로 설정
             setSelectedQuestion(question);
             setActiveTab("questions");
             setError("");
-    
+
             // [수정] onConversationStart 콜백의 반환값을 확인하여 시작 여부 결정
             if (onConversationStart) {
                 const canStart = onConversationStart();
@@ -173,10 +177,17 @@ export const useGeminiLiveConversation = ({
                 }
             }
 
+            // Firebase Analytics 이벤트 로깅
+            logAnalyticsEvent("start_conversation", {
+                video_id: videoId,
+                selected_question: question,
+                user_plan: user?.uid ? "logged_in" : "guest", // 사용자의 플랜 정보가 필요하다면 여기에 추가
+            });
+
             // [수정] 대화 시작 시간 기록 및 자동 종료 타이머 설정
             conversationStartTimeRef.current = Date.now();
             sessionTimerRef.current = setTimeout(() => {
-                handleStopConversation('session_timeout');
+                handleStopConversation("session_timeout");
             }, sessionTimeLimit * 1000); // 밀리초로 변환
 
             console.log("1. Fetching token...");
@@ -309,13 +320,12 @@ export const useGeminiLiveConversation = ({
             console.error("Error starting conversation:", errorMessage);
             setError(errorMessage);
             await handleStopConversation("startConversation.catch");
-        }finally {
+        } finally {
             // [중요] 성공, 실패, 취소 등 모든 경우에 isConnecting을 false로 설정
             setIsConnecting(false);
         }
     };
 
-  
     return {
         isConnecting,
         isRecording,

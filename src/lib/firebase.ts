@@ -1,7 +1,11 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
 import { getAuth, Auth } from "firebase/auth";
 import { getFirestore, Firestore } from "firebase/firestore";
-import { getAnalytics as getClientAnalytics } from "firebase/analytics";
+import {
+    getAnalytics as getClientAnalytics,
+    logEvent,
+    Analytics,
+} from "firebase/analytics"; // logEvent와 Analytics 타입 임포트
 
 // Initialize Firebase services
 const firebaseConfig = {
@@ -20,11 +24,31 @@ const auth: Auth = getAuth(app);
 const db: Firestore = getFirestore(app, "youtube-english"); // 데이터베이스 이름 지정은 선택사항입니다.
 
 // Check if window is defined to ensure client-side initialization
-const getAnalytics = () => {
+const getAnalytics = (): Analytics | null => {
     if (typeof window !== "undefined") {
         return getClientAnalytics(app);
     }
     return null;
 };
 
-export { app, auth, db, getAnalytics };
+// Firebase Analytics 이벤트를 로깅하는 유틸리티 함수
+const logAnalyticsEvent = (
+    eventName: string,
+    eventParams?: { [key: string]: any }
+) => {
+    const analytics = getAnalytics();
+    if (analytics) {
+        logEvent(analytics, eventName, eventParams);
+        console.log(
+            `[Firebase Analytics] Event logged: ${eventName}`,
+            eventParams
+        );
+    } else {
+        console.warn(
+            "[Firebase Analytics] Analytics not available. Event not logged:",
+            eventName
+        );
+    }
+};
+
+export { app, auth, db, getAnalytics, logAnalyticsEvent }; // logAnalyticsEvent 내보내기
