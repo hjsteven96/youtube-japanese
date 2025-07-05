@@ -25,7 +25,9 @@ import {
 import LoadingAnimation from "../../components/LoadingAnimation";
 import ConversationModal from "../../components/ConversationModal";
 import VideoPlayer from "../../components/VideoPlayer";
-import AnalysisTabs from "../../components/AnalysisTabs";
+import VideoInfo from "../../components/VideoInfo";
+import AnalysisTabBar from "../../components/AnalysisTabBar";
+import AnalysisTabContent from "../../components/AnalysisTabContent";
 import { useGeminiLiveConversation } from "../../../lib/useGeminiLiveConversation";
 import { SavedExpression } from "../../components/SavedExpressions";
 import Toast from "../../components/Toast";
@@ -615,6 +617,12 @@ function AnalysisPageComponent({
 
     const isLoading = isTranscriptLoading;
 
+    // [추가] maxSavedWords, savedExpressionsCount 계산 로직
+    const maxSavedWords = userProfile
+        ? PLANS[userProfile.plan].maxSavedWords
+        : PLANS.free.maxSavedWords;
+    const savedExpressionsCount = savedExpressions.length;
+
     if (isRedirecting) {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen">
@@ -626,64 +634,192 @@ function AnalysisPageComponent({
         );
     }
 
+    if (isLoading) {
+        return <LoadingAnimation />;
+    }
+
+    // data가 없을 때 에러 표시
+    if (error && !analysisData) {
+        return (
+            <p className="text-red-500 text-lg mt-4 text-center p-4 bg-red-100 rounded-lg w-full max-w-6xl mx-auto px-4">
+                ⚠️ {error}
+            </p>
+        );
+    }
+
+    // 메인 렌더링 로직
     return (
         <>
             <AnalysisHeader />
-            <div className="min-h-screen flex flex-col items-center pt-16 py-4 bg-gradient-to-br from-blue-50 to-purple-50">
-                {isLoading && <LoadingAnimation />}
+            <div className="bg-gradient-to-br from-blue-50 to-purple-50">
+                {" "}
+                {/* 수정: min-h-screen 제거 */}
+                {analysisData && (
+                    <div className="w-full max-w-6xl mx-auto">
+                        {/* PC Layout */}
+                        <div className="hidden lg:flex lg:flex-row lg:space-x-8 p-6 bg-white rounded-2xl shadow-xl pt-20 h-[calc(100vh-80px)] overflow-hidden">
+                            {" "}
+                            {/* 수정: mt-4 제거, pt-20 추가 */}
+                            {/* Left Column - Make it sticky and scrollable if content overflows */}
+                            <div className="lg:w-1/2 sticky top-0 max-h-full overflow-y-auto">
+                                {" "}
+                                {/* Adjusted top for header (64px) + mt-4 (16px) = 80px */}
+                                {!isMobile && (
+                                    <VideoPlayer
+                                        url={`https://www.youtube.com/watch?v=${videoId}`}
+                                        playerRef={playerRef}
+                                        isPlaying={isPlaying}
+                                        playbackRate={playbackRate}
+                                        onPlay={() => setIsPlaying(true)}
+                                        onPause={() => setIsPlaying(false)}
+                                        onEnded={() => setIsPlaying(false)}
+                                        onProgress={(state) =>
+                                            setCurrentTime(state.playedSeconds)
+                                        }
+                                        isMobile={isMobile} // 추가
+                                    />
+                                )}
+                                <VideoInfo
+                                    title={analysisData.youtubeTitle ?? null} // || 대신 ?? 사용
+                                    summary={analysisData.analysis.summary}
+                                    isAnalysisLoading={isAnalysisLoading}
+                                />
+                            </div>
+                            {/* Right Column - Make it sticky and its content already scrolls via AnalysisTabs */}
+                            <div className="w-full lg:w-1/2 sticky top-20 max-h-[calc(100vh-80px)] overflow-y-auto">
+                                {" "}
+                                {/* Adjusted top for header (64px) + mt-4 (16px) = 80px */}
+                                <AnalysisTabBar
+                                    activeTab={activeTab}
+                                    setActiveTab={setActiveTab}
+                                    className="sticky top-0 z-10 bg-white" /* 추가: PC 탭바 상단 고정 */
+                                />
+                                <div className="flex-1 overflow-y-auto rounded-b-2xl hide-scrollbar p-3">
+                                    <AnalysisTabContent
+                                        activeTab={activeTab}
+                                        analysis={analysisData.analysis}
+                                        transcript={
+                                            analysisData.transcript_text
+                                        }
+                                        currentTime={currentTime}
+                                        onSeek={handleSeek}
+                                        onStartConversation={
+                                            handleStartConversation
+                                        }
+                                        isConversationPending={
+                                            isRecording || isPlayingAudio
+                                        }
+                                        user={user}
+                                        youtubeUrl={`https://www.youtube.com/watch?v=${videoId}`}
+                                        savedExpressions={savedExpressions}
+                                        onDeleteExpression={
+                                            handleDeleteExpression
+                                        }
+                                        onAddExpression={handleAddExpression}
+                                        onLoopToggle={handleLoopToggle}
+                                        isLooping={isLooping}
+                                        currentLoopStartTime={loopStartTime}
+                                        currentLoopEndTime={loopEndTime}
+                                        videoDuration={
+                                            analysisData.duration || null
+                                        }
+                                        onShowToast={handleShowToast}
+                                        isAnalysisLoading={isAnalysisLoading}
+                                        userProfile={userProfile}
+                                        onShowAlert={handleShowAlert}
+                                        maxSavedWords={maxSavedWords}
+                                        savedExpressionsCount={
+                                            savedExpressionsCount
+                                        }
+                                    />
+                                </div>
+                            </div>
+                        </div>
 
-                {error && !isLoading && (
-                    <p className="text-red-500 text-lg mt-4 text-center p-4 bg-red-100 rounded-lg w-full max-w-6xl mx-auto px-4">
-                        ⚠️ {error}
-                    </p>
-                )}
+                        {/* Mobile Layout */}
+                        <div className="lg:hidden flex flex-col">
+                            {/* 1. 상단 고정 영역 */}
+                            <div className="sticky top-0 bg-white z-20">
+                                <div className="">
+                                    {" "}
+                                    {/* 수정: p-3 클래스 제거 */}
+                                    {isMobile && (
+                                        <VideoPlayer
+                                            url={`https://www.youtube.com/watch?v=${videoId}`}
+                                            playerRef={playerRef}
+                                            isPlaying={isPlaying}
+                                            playbackRate={playbackRate}
+                                            onPlay={() => setIsPlaying(true)}
+                                            onPause={() => setIsPlaying(false)}
+                                            onEnded={() => setIsPlaying(false)}
+                                            onProgress={(state) =>
+                                                setCurrentTime(
+                                                    state.playedSeconds
+                                                )
+                                            }
+                                            isMobile={isMobile} // 추가
+                                        />
+                                    )}
+                                </div>
+                                <AnalysisTabBar
+                                    activeTab={activeTab}
+                                    setActiveTab={setActiveTab}
+                                />
+                            </div>
 
-                {!isLoading && analysisData && (
-                    <div className="w-full max-w-6xl bg-white p-3 md:p-6 rounded-2xl shadow-xl flex flex-col lg:flex-row lg:space-x-8 mt-4 mx-auto">
-                        <VideoPlayer
-                            url={`https://www.youtube.com/watch?v=${videoId}`}
-                            title={analysisData.youtubeTitle || "영상 제목"}
-                            summary={analysisData.analysis.summary}
-                            playerRef={playerRef}
-                            isPlaying={isPlaying}
-                            playbackRate={playbackRate}
-                            onPlay={() => setIsPlaying(true)}
-                            onPause={() => setIsPlaying(false)}
-                            onEnded={() => setIsPlaying(false)}
-                            onProgress={(state) =>
-                                setCurrentTime(state.playedSeconds)
-                            }
-                            isAnalysisLoading={isAnalysisLoading}
-                        />
-                        <AnalysisTabs
-                            analysis={analysisData.analysis}
-                            transcript={analysisData.transcript_text}
-                            currentTime={currentTime}
-                            onSeek={handleSeek}
-                            onStartConversation={handleStartConversation}
-                            isConversationPending={
-                                isRecording || isPlayingAudio
-                            }
-                            user={user}
-                            youtubeUrl={`https://www.youtube.com/watch?v=${videoId}`}
-                            activeTab={activeTab}
-                            setActiveTab={setActiveTab}
-                            savedExpressions={savedExpressions}
-                            onDeleteExpression={handleDeleteExpression}
-                            onAddExpression={handleAddExpression}
-                            onLoopToggle={handleLoopToggle}
-                            isLooping={isLooping}
-                            currentLoopStartTime={loopStartTime}
-                            currentLoopEndTime={loopEndTime}
-                            videoDuration={analysisData.duration || null}
-                            onShowToast={handleShowToast}
-                            isAnalysisLoading={isAnalysisLoading}
-                            userProfile={userProfile}
-                            onShowAlert={handleShowAlert}
-                        />
+                            {/* 2. 스크롤 영역 */}
+                            <div className="p-3 bg-white pb-24">
+                                {" "}
+                                {/* 수정: 하단 플로팅 컨트롤러 높이만큼 패딩 추가 */}
+                                <VideoInfo
+                                    title={analysisData.youtubeTitle ?? null} // || 대신 ?? 사용
+                                    summary={analysisData.analysis.summary}
+                                    isAnalysisLoading={isAnalysisLoading}
+                                />
+                                <div className="mt-4">
+                                    <AnalysisTabContent
+                                        activeTab={activeTab}
+                                        analysis={analysisData.analysis}
+                                        transcript={
+                                            analysisData.transcript_text
+                                        }
+                                        currentTime={currentTime}
+                                        onSeek={handleSeek}
+                                        onStartConversation={
+                                            handleStartConversation
+                                        }
+                                        isConversationPending={
+                                            isRecording || isPlayingAudio
+                                        }
+                                        user={user}
+                                        youtubeUrl={`https://www.youtube.com/watch?v=${videoId}`}
+                                        savedExpressions={savedExpressions}
+                                        onDeleteExpression={
+                                            handleDeleteExpression
+                                        }
+                                        onAddExpression={handleAddExpression}
+                                        onLoopToggle={handleLoopToggle}
+                                        isLooping={isLooping}
+                                        currentLoopStartTime={loopStartTime}
+                                        currentLoopEndTime={loopEndTime}
+                                        videoDuration={
+                                            analysisData.duration || null
+                                        }
+                                        onShowToast={handleShowToast}
+                                        isAnalysisLoading={isAnalysisLoading}
+                                        userProfile={userProfile}
+                                        onShowAlert={handleShowAlert}
+                                        maxSavedWords={maxSavedWords}
+                                        savedExpressionsCount={
+                                            savedExpressionsCount
+                                        }
+                                    />
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 )}
-
+                {/* 나머지 모달, 토스트 등 */}
                 {!isLoading && analysisData && isMobile && (
                     <FloatingPlayerControls
                         playerRef={playerRef}
@@ -694,7 +830,6 @@ function AnalysisPageComponent({
                         onPlaybackRateChange={handlePlaybackRateChange}
                     />
                 )}
-
                 <ConversationModal
                     isOpen={isConversationModeActive}
                     onClose={() => {
@@ -705,14 +840,12 @@ function AnalysisPageComponent({
                     selectedQuestion={selectedQuestion}
                     remainingTime={remainingTime}
                 />
-
                 <Toast
                     message={toastMessage}
                     isVisible={showToast}
                     onClose={handleCloseToast}
                     duration={3000}
                 />
-
                 {showAlertModal && (
                     <Alert
                         title={alertModalContent.title}

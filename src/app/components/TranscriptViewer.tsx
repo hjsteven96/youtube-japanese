@@ -108,7 +108,9 @@ const TranscriptViewer = ({
     const savedTexts = useMemo(
         () =>
             new Set(
-                savedExpressions.map((exp) => exp.originalText.toLowerCase())
+                (savedExpressions || []).map((exp) =>
+                    exp.originalText.toLowerCase()
+                ) // 수정: savedExpressions가 undefined일 경우 빈 배열로 처리
             ),
         [savedExpressions]
     );

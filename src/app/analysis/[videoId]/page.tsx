@@ -2,7 +2,7 @@
 
 import { Metadata } from "next";
 import { Suspense } from "react";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { getYoutubeVideoDetails } from "@/lib/youtube";
 
@@ -21,7 +21,20 @@ async function getAnalysisData(
         const docRef = doc(db, "videoAnalyses", videoId);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
-            return docSnap.data() as GeminiResponseData;
+            const data = docSnap.data() as GeminiResponseData;
+            // 데이터를 직접 수정하는 대신 새로운 객체를 생성하여 직렬화 가능한 형태로 변환
+            const serializableData: GeminiResponseData & {
+                timestamp?: string;
+            } = { ...data };
+
+            // Firestore Timestamp를 ISO 문자열로 변환
+            if (serializableData.timestamp instanceof Timestamp) {
+                serializableData.timestamp = serializableData.timestamp
+                    .toDate()
+                    .toISOString();
+            }
+
+            return serializableData;
         }
         return null;
     } catch (error) {
