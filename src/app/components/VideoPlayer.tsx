@@ -57,7 +57,7 @@ const VideoPlayer = ({
 
             {title && (
                 <div className="mt-4 mb-2 m-3">
-                    <h1 className="text-base md:text-xl lg:text-2xl font-bold text-gray-800">
+                    <h1 className="text-sm md:text-lg lg:text-xl font-bold text-gray-800">
                         {title} 자막으로 영어 공부하기
                     </h1>
                 </div>
@@ -92,7 +92,7 @@ const VideoPlayer = ({
                 </button>
 
                 {/* 데스크톱 헤더 (항상 표시) */}
-                <h3 className="hidden md:flex items-center text-xl font-bold mb-3 text-blue-600">
+                <h3 className="hidden md:flex items-center text-lg font-semibold mb-3 text-blue-600">
                     <span className="mr-2">📋</span>영상 요약
                 </h3>
 

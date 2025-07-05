@@ -1,7 +1,13 @@
 // src/app/components/TranscriptViewer.tsx
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import React, {
+    useState,
+    useRef,
+    useEffect,
+    useCallback,
+    useMemo,
+} from "react";
 import { User } from "firebase/auth";
 import { SavedExpression } from "./SavedExpressions";
 import Alert from "./Alert";
@@ -67,7 +73,7 @@ const TranscriptViewer = ({
     const transcriptContainerRef = useRef<HTMLDivElement>(null);
     const tooltipRef = useRef<HTMLDivElement>(null); // 텍스트 선택(드래그) 툴팁 ref
     // [수정 1] 하이라이트 클릭 툴팁을 위한 ref 추가
-    const highlightTooltipRef = useRef<HTMLDivElement>(null); 
+    const highlightTooltipRef = useRef<HTMLDivElement>(null);
     const segmentRefs = useRef<(HTMLParagraphElement | null)[]>([]);
 
     const hideButtonTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -91,49 +97,58 @@ const TranscriptViewer = ({
         subtitle: "",
     });
 
-    const [tooltipInfo, setTooltipInfo] = useState<{ 
-        visible: boolean; 
-        content: string; 
-        x: number; 
-        y: number; 
+    const [tooltipInfo, setTooltipInfo] = useState<{
+        visible: boolean;
+        content: string;
+        x: number;
+        y: number;
     } | null>(null);
 
     // 저장된 표현 목록을 렌더링 최적화를 위해 Set으로 변환
-    const savedTexts = useMemo(() => 
-        new Set(savedExpressions.map(exp => exp.originalText.toLowerCase())),
+    const savedTexts = useMemo(
+        () =>
+            new Set(
+                savedExpressions.map((exp) => exp.originalText.toLowerCase())
+            ),
         [savedExpressions]
     );
 
     // [추가] savedExpressions 데이터 확인용 로그
     useEffect(() => {
-        console.log('Saved expressions:', savedExpressions);
+        console.log("Saved expressions:", savedExpressions);
     }, [savedExpressions]);
 
     // 하이라이트 클릭 핸들러
     const handleHighlightClick = useCallback(
-        (event: React.MouseEvent<HTMLSpanElement>,
-        expression: SavedExpression
-    ) => {
-        event.stopPropagation();
-        event.preventDefault(); // [추가] 이벤트의 기본 동작 방지
-        
-        console.log('Highlight clicked:', expression); // [디버깅] 클릭된 표현 로깅
+        (
+            event: React.MouseEvent<HTMLSpanElement>,
+            expression: SavedExpression
+        ) => {
+            event.stopPropagation();
+            event.preventDefault(); // [추가] 이벤트의 기본 동작 방지
 
-        const rect = event.currentTarget.getBoundingClientRect();
-        const newTooltipInfo = {
-            visible: true,
-            content: expression.interpretation,
-            x: rect.left + rect.width / 2 + window.scrollX,
-            y: rect.bottom + window.scrollY + 5,
-        };
-        setTooltipInfo(newTooltipInfo);
-        console.log('Setting tooltip info:', newTooltipInfo); // [디버깅] 툴팁 정보 설정 로깅
-    }, []);
-    
+            console.log("Highlight clicked:", expression); // [디버깅] 클릭된 표현 로깅
+
+            const rect = event.currentTarget.getBoundingClientRect();
+            const newTooltipInfo = {
+                visible: true,
+                content: expression.interpretation,
+                x: rect.left + rect.width / 2 + window.scrollX,
+                y: rect.bottom + window.scrollY + 5,
+            };
+            setTooltipInfo(newTooltipInfo);
+            console.log("Setting tooltip info:", newTooltipInfo); // [디버깅] 툴팁 정보 설정 로깅
+        },
+        []
+    );
+
     // [수정 3] 하이라이트 클릭 툴팁을 숨기는 useEffect 재수정 (setTimeout 재추가)
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if (highlightTooltipRef.current && !highlightTooltipRef.current.contains(event.target as Node)) {
+            if (
+                highlightTooltipRef.current &&
+                !highlightTooltipRef.current.contains(event.target as Node)
+            ) {
                 setTooltipInfo(null);
             }
         };
@@ -151,46 +166,63 @@ const TranscriptViewer = ({
         return () => {};
     }, [tooltipInfo]);
 
-    const renderHighlightedText = useCallback((text: string) => {
-        if (savedExpressions.length === 0) {
-            return <span>{text}</span>;
-        }
-        const regex = new RegExp(
-            savedExpressions
-                .map(exp => exp.originalText.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'))
-                .join('|'),
-            'gi'
-        );
-        
-        const parts = text.split(regex);
-        const matches = text.match(regex) || [];
+    const renderHighlightedText = useCallback(
+        (text: string) => {
+            if (savedExpressions.length === 0) {
+                return <span>{text}</span>;
+            }
+            const regex = new RegExp(
+                savedExpressions
+                    .map((exp) =>
+                        exp.originalText.replace(
+                            /[-\/\\^$*+?.()|[\]{}]/g,
+                            "\\$&"
+                        )
+                    )
+                    .join("|"),
+                "gi"
+            );
 
-        return (
-            <span>
-                {parts.map((part, index) => (
-                    <React.Fragment key={index}>
-                        {part}
-                        {matches[index] && (() => {
-                            const matchedExpression = savedExpressions.find(
-                                exp => exp.originalText.toLowerCase() === matches[index].toLowerCase()
-                            );
-                            if (matchedExpression) {
-                                return (
-                                    <span
-                                        className="bg-yellow-200/70 rounded px-1 py-0.5 cursor-pointer hover:bg-yellow-300/70"
-                                        onClick={(e) => handleHighlightClick(e, matchedExpression)}
-                                    >
-                                        {matches[index]}
-                                    </span>
-                                );
-                            }
-                            return <span>{matches[index]}</span>;
-                        })()}
-                    </React.Fragment>
-                ))}
-            </span>
-        );
-    }, [savedExpressions, handleHighlightClick]);
+            const parts = text.split(regex);
+            const matches = text.match(regex) || [];
+
+            return (
+                <span>
+                    {parts.map((part, index) => (
+                        <React.Fragment key={index}>
+                            {part}
+                            {matches[index] &&
+                                (() => {
+                                    const matchedExpression =
+                                        savedExpressions.find(
+                                            (exp) =>
+                                                exp.originalText.toLowerCase() ===
+                                                matches[index].toLowerCase()
+                                        );
+                                    if (matchedExpression) {
+                                        return (
+                                            <span
+                                                className="bg-yellow-200/70 rounded px-1 py-0.5 cursor-pointer hover:bg-yellow-300/70"
+                                                onClick={(e) =>
+                                                    handleHighlightClick(
+                                                        e,
+                                                        matchedExpression
+                                                    )
+                                                }
+                                            >
+                                                {matches[index]}
+                                            </span>
+                                        );
+                                    }
+                                    return <span>{matches[index]}</span>;
+                                })()}
+                        </React.Fragment>
+                    ))}
+                </span>
+            );
+        },
+        [savedExpressions, handleHighlightClick]
+    );
 
     useEffect(() => {
         if (activeSegmentIndex < 1) return;
@@ -268,13 +300,12 @@ const TranscriptViewer = ({
         let desiredLeft = selectionCenterXInContainer - tooltipWidth / 2;
 
         if (desiredLeft < 0) {
-            finalLeft = 0; 
+            finalLeft = 0;
             transformParts = transformParts.filter(
                 (p) => !p.startsWith("translateX")
-            ); 
+            );
             transformParts.push("translateX(0%)");
-        }
-        else if (desiredLeft + tooltipWidth > containerRect.width) {
+        } else if (desiredLeft + tooltipWidth > containerRect.width) {
             finalLeft = containerRect.width - tooltipWidth;
             transformParts = transformParts.filter(
                 (p) => !p.startsWith("translateX")
@@ -287,7 +318,7 @@ const TranscriptViewer = ({
             );
             transformParts.push("translateX(-50%)");
         }
-        
+
         setTooltipStyles({
             top: finalTop,
             left: finalLeft,
@@ -307,13 +338,13 @@ const TranscriptViewer = ({
             }
 
             const selectedText = selection.toString().trim();
-                const containerNode = transcriptContainerRef.current;
+            const containerNode = transcriptContainerRef.current;
 
             if (
                 selectedText &&
                 selectedText.length > 0 &&
                 containerNode.contains(selection.anchorNode!)
-                ) {
+            ) {
                 setInterpretationResult(null);
                 setTooltipText(selectedText);
 
@@ -455,37 +486,39 @@ const TranscriptViewer = ({
 
     return (
         <>
-        <div
-            ref={transcriptContainerRef}
-            className="text-gray-700 relative select-text"
-            onContextMenu={(e) => e.preventDefault()}
-        >
+            <div
+                ref={transcriptContainerRef}
+                className="text-gray-700 relative select-text"
+                onContextMenu={(e) => e.preventDefault()}
+            >
                 {/* Tip 텍스트 추가 */}
                 {parsedTranscript.length > 0 && (
-                    <p className="text-sm text-gray-500 mb-4 px-2"> 
-                        Tip: 모르는 단어나 문장을 드래그하여 AI 해석을 확인해보세요!
+                    <p className="text-sm text-gray-500 mb-4 px-2">
+                        Tip: 모르는 단어나 문장을 드래그하여 AI 해석을
+                        확인해보세요!
                     </p>
                 )}
-            {parsedTranscript.map((segment, index) => {
-                const isCurrent = index === activeSegmentIndex;
-                const nextSegment = parsedTranscript[index + 1];
-                const segmentEndTime = nextSegment
-                    ? nextSegment.time
-                    : videoDuration || segment.time + 5;
-                const isLoopingThisSegment =
-                    isLooping && currentLoopStartTime === segment.time;
-                const isSelectedForAction = selectedForActionIndex === index;
-                const isButtonVisible =
-                    isLoopingThisSegment || isSelectedForAction;
+                {parsedTranscript.map((segment, index) => {
+                    const isCurrent = index === activeSegmentIndex;
+                    const nextSegment = parsedTranscript[index + 1];
+                    const segmentEndTime = nextSegment
+                        ? nextSegment.time
+                        : videoDuration || segment.time + 5;
+                    const isLoopingThisSegment =
+                        isLooping && currentLoopStartTime === segment.time;
+                    const isSelectedForAction =
+                        selectedForActionIndex === index;
+                    const isButtonVisible =
+                        isLoopingThisSegment || isSelectedForAction;
 
-                return (
-                    <p
-                        key={index}
-                        ref={(el) => {
-                            if (segmentRefs.current)
-                                segmentRefs.current[index] = el;
-                        }}
-                        onClick={() => handleLineClick(index)}
+                    return (
+                        <p
+                            key={index}
+                            ref={(el) => {
+                                if (segmentRefs.current)
+                                    segmentRefs.current[index] = el;
+                            }}
+                            onClick={() => handleLineClick(index)}
                             className={`relative group flex items-start min-h-[44px] cursor-pointer transition-all duration-300 pl-2 pr-2 py-2
                             ${
                                 isCurrent
@@ -498,7 +531,7 @@ const TranscriptViewer = ({
                                     : ""
                             }
                         `}
-                    >
+                        >
                             <span
                                 className="text-blue-500 hover:text-purple-600 transition-colors duration-300 mr-2"
                                 onClick={(e) => {
@@ -508,33 +541,48 @@ const TranscriptViewer = ({
                             >
                                 [
                                 {(() => {
-                                    const hours = Math.floor(segment.time / 3600);
-                                    const minutes = Math.floor((segment.time % 3600) / 60);
-                                    const seconds = Math.floor(segment.time % 60);
+                                    const hours = Math.floor(
+                                        segment.time / 3600
+                                    );
+                                    const minutes = Math.floor(
+                                        (segment.time % 3600) / 60
+                                    );
+                                    const seconds = Math.floor(
+                                        segment.time % 60
+                                    );
 
                                     return `${
-                                        hours > 0 ? `${String(hours).padStart(2, '0')}:` : ''
-                                    }${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+                                        hours > 0
+                                            ? `${String(hours).padStart(
+                                                  2,
+                                                  "0"
+                                              )}:`
+                                            : ""
+                                    }${String(minutes).padStart(
+                                        2,
+                                        "0"
+                                    )}:${String(seconds).padStart(2, "0")}`;
                                 })()}
                                 ]
                             </span>{" "}
                             <span
                                 className={`${
                                     isCurrent ? "font-medium" : "text-gray-600"
-                                } whitespace-pre-wrap flex-1`}
+                                } whitespace-pre-wrap flex-1 text-lg`}
                             >
                                 {renderHighlightedText(segment.text)}
-                        </span>
-
-                        <button
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                if (hideButtonTimerRef.current) {
-                                    clearTimeout(hideButtonTimerRef.current);
-                                }
-                                onLoopToggle(segment.time, segmentEndTime);
-                            }}
-                            className={`
+                            </span>
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (hideButtonTimerRef.current) {
+                                        clearTimeout(
+                                            hideButtonTimerRef.current
+                                        );
+                                    }
+                                    onLoopToggle(segment.time, segmentEndTime);
+                                }}
+                                className={`
                                 absolute right-3 top-1/2 transform -translate-y-1/2 p-2 rounded-full transition-all duration-300
                                 ${
                                     isLoopingThisSegment
@@ -547,67 +595,73 @@ const TranscriptViewer = ({
                                         : "opacity-0 pointer-events-none md:group-hover:opacity-100 md:group-hover:pointer-events-auto"
                                 }
                             `}
-                            title={
-                                isLoopingThisSegment
-                                    ? "구간 반복 중지"
-                                    : "구간 반복 시작"
-                            }
-                        >
-                            <ArrowPathIcon
-                                className={`h-4 w-4 ${
-                                    isLoopingThisSegment ? "animate-spin" : ""
-                                }`}
-                            />
-                        </button>
-                    </p>
-                );
-            })}
+                                title={
+                                    isLoopingThisSegment
+                                        ? "구간 반복 중지"
+                                        : "구간 반복 시작"
+                                }
+                            >
+                                <ArrowPathIcon
+                                    className={`h-4 w-4 ${
+                                        isLoopingThisSegment
+                                            ? "animate-spin"
+                                            : ""
+                                    }`}
+                                />
+                            </button>
+                        </p>
+                    );
+                })}
 
-            {showTooltip && (
-                <div
-                    ref={tooltipRef}
-                    className="absolute z-20 bg-black bg-opacity-80 text-white text-sm rounded-lg shadow-lg py-2 px-3 flex flex-col space-y-2 max-w-xs min-w-[120px]"
+                {showTooltip && (
+                    <div
+                        ref={tooltipRef}
+                        className="absolute z-20 bg-black bg-opacity-80 text-white text-sm rounded-lg shadow-lg py-2 px-3 flex flex-col space-y-2 max-w-xs min-w-[120px]"
                         style={tooltipStyles}
-                >
-                    {isInterpreting ? (
-                        <p>AI가 해석 중...</p>
-                    ) : interpretationResult ? (
-                        <div className="flex flex-col space-y-2">
-                            <p className="font-bold">AI 해석:</p>
-                            <p>{interpretationResult}</p>
-                            <div className="flex justify-end space-x-2 mt-2">
-                                {user && (
+                    >
+                        {isInterpreting ? (
+                            <p>AI가 해석 중...</p>
+                        ) : interpretationResult ? (
+                            <div className="flex flex-col space-y-2">
+                                <p className="font-bold">AI 해석:</p>
+                                <p>{interpretationResult}</p>
+                                <div className="flex justify-end space-x-2 mt-2">
+                                    {user && (
+                                        <button
+                                            onMouseDown={
+                                                handleSaveInterpretation
+                                            }
+                                            className="bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded-md text-xs"
+                                        >
+                                            저장
+                                        </button>
+                                    )}
                                     <button
-                                        onMouseDown={handleSaveInterpretation}
-                                        className="bg-blue-600 hover:bg-blue-700 px-2 py-1 rounded-md text-xs"
+                                        onMouseDown={() =>
+                                            setShowTooltip(false)
+                                        }
+                                        className="bg-gray-600 hover:bg-gray-700 px-2 py-1 rounded-md text-xs"
                                     >
-                                        저장
+                                        닫기
                                     </button>
-                                )}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex space-x-2">
                                 <button
-                                    onMouseDown={() => setShowTooltip(false)}
-                                    className="bg-gray-600 hover:bg-gray-700 px-2 py-1 rounded-md text-xs"
+                                    onMouseDown={handleAIInterpretation}
+                                    className="hover:bg-gray-700 px-2 py-1 rounded-md"
                                 >
-                                    닫기
+                                    AI 해석
+                                </button>
+                                <button
+                                    onClick={() => setShowTooltip(false)}
+                                    className="hover:bg-gray-700 px-2 py-1 rounded-md"
+                                >
+                                    X
                                 </button>
                             </div>
-                        </div>
-                    ) : (
-                        <div className="flex space-x-2">
-                            <button
-                                onMouseDown={handleAIInterpretation}
-                                className="hover:bg-gray-700 px-2 py-1 rounded-md"
-                            >
-                                AI 해석
-                            </button>
-                            <button
-                                onClick={() => setShowTooltip(false)}
-                                className="hover:bg-gray-700 px-2 py-1 rounded-md"
-                            >
-                                X
-                            </button>
-                        </div>
-                    )}
+                        )}
                     </div>
                 )}
             </div>
@@ -620,10 +674,10 @@ const TranscriptViewer = ({
                     style={{
                         top: `${tooltipInfo.y}px`,
                         left: `${tooltipInfo.x}px`,
-                        transform: 'translateX(-50%)', // 중앙 정렬
-                        pointerEvents: 'auto', // [추가] 명시적으로 pointer-events: auto 설정
+                        transform: "translateX(-50%)", // 중앙 정렬
+                        pointerEvents: "auto", // [추가] 명시적으로 pointer-events: auto 설정
                     }}
-                    onClick={e => e.stopPropagation()} // 툴팁 클릭 시 닫히지 않도록 함
+                    onClick={(e) => e.stopPropagation()} // 툴팁 클릭 시 닫히지 않도록 함
                 >
                     {tooltipInfo.content}
                 </div>
