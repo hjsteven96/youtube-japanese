@@ -16,6 +16,7 @@
         "@radix-ui/react-avatar": "^1.1.10",
         "@radix-ui/react-slot": "^1.2.3",
         "@sparticuz/chromium": "^137.0.1",
+        "@vercel/analytics": "^1.5.0",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "date-fns": "^4.1.0",
