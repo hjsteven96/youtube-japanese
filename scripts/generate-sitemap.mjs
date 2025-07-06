@@ -1,35 +1,65 @@
 // scripts/generate-sitemap.mjs
 import fs from "fs";
 import path from "path";
-// firebase-admin 전체를 'admin'으로 가져옵니다.
 import admin from "firebase-admin";
-// Timestamp 타입을 가져오기 위해 별도로 import 합니다.
 import { Timestamp } from "firebase-admin/firestore";
 
-// 서비스 계정 키 파일을 직접 읽어옵니다.
-const serviceAccountPath = path.join(process.cwd(), "service-account.json");
-if (!fs.existsSync(serviceAccountPath)) {
-    console.error(
-        "❌ service-account.json 파일을 찾을 수 없습니다! 빌드를 중단합니다."
-    );
-    process.exit(1);
+// ▼▼▼ 로컬과 Vercel 환경을 구분하여 서비스 계정 정보를 가져오는 함수 ▼▼▼
+function getServiceAccount() {
+    // Vercel 환경일 경우 (VERCEL 환경 변수가 '1'로 설정됨)
+    if (process.env.VERCEL) {
+        console.log("Running in Vercel environment. Using Base64 credentials.");
+        const serviceAccountBase64 =
+            process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
+        if (!serviceAccountBase64) {
+            throw new Error(
+                "Vercel: FIREBASE_SERVICE_ACCOUNT_BASE64 environment variable is not set."
+            );
+        }
+        // Base64 디코딩
+        const serviceAccountJson = Buffer.from(
+            serviceAccountBase64,
+            "base64"
+        ).toString("utf-8");
+        return JSON.parse(serviceAccountJson);
+    }
+    // 로컬 개발 환경일 경우
+    else {
+        console.log(
+            "Running in local environment. Reading service-account.json file."
+        );
+        const serviceAccountPath = path.join(
+            process.cwd(),
+            "service-account.json"
+        );
+        if (!fs.existsSync(serviceAccountPath)) {
+            throw new Error(
+                "Local: service-account.json file not found in project root."
+            );
+        }
+        // 파일을 직접 읽음
+        return JSON.parse(fs.readFileSync(serviceAccountPath, "utf8"));
+    }
 }
-const serviceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, "utf8"));
 
-// ▼▼▼ 핵심 수정 부분 ▼▼▼
-// Firebase Admin 초기화 (올바른 방법)
-// admin.apps 배열의 길이를 확인하여 이미 초기화되었는지 체크합니다.
+// Firebase Admin 초기화
 if (!admin.apps.length) {
-    console.log("Initializing Firebase Admin SDK...");
-    admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-    });
+    try {
+        console.log("Initializing Firebase Admin SDK...");
+        const serviceAccount = getServiceAccount(); // 위에서 정의한 함수 사용
+        admin.initializeApp({
+            credential: admin.credential.cert(serviceAccount),
+        });
+        console.log("Firebase Admin SDK initialized successfully.");
+    } catch (e) {
+        console.error("CRITICAL: Firebase Admin SDK initialization failed.", e);
+        process.exit(1); // 초기화 실패 시 빌드 중단
+    }
 }
-// ▲▲▲ 핵심 수정 부분 ▲▲▲
 
-// 초기화가 보장된 상태에서 Firestore 인스턴스를 가져옵니다.
 const db = admin.firestore();
 
+// ... generateSitemap 함수는 이전과 동일하게 둡니다 ...
 async function generateSitemap() {
     const baseUrl = "https://lingto.xyz";
 
@@ -42,7 +72,6 @@ async function generateSitemap() {
     const dynamicUrls = analysesSnapshot.docs
         .map((doc) => {
             const data = doc.data();
-            // data.timestamp가 Timestamp 객체인지 다시 한번 확인합니다.
             const lastModified =
                 data.timestamp instanceof Timestamp
                     ? data.timestamp.toDate().toISOString()
