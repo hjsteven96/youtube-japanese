@@ -1,12 +1,13 @@
 // scripts/generate-sitemap.mjs
 import fs from "fs";
 import path from "path";
-import admin from "firebase-admin";
-import { Timestamp } from "firebase-admin/firestore";
 
-// ▼▼▼ 로컬과 Vercel 환경을 구분하여 서비스 계정 정보를 가져오는 함수 ▼▼▼
+// firebase-admin의 모듈을 개별적으로 가져옵니다. 이것이 표준 방식입니다.
+import { initializeApp, getApps, cert } from "firebase-admin/app";
+import { getFirestore, Timestamp } from "firebase-admin/firestore";
+
+// 서비스 계정 정보를 가져오는 함수 (이전과 동일)
 function getServiceAccount() {
-    // Vercel 환경일 경우 (VERCEL 환경 변수가 '1'로 설정됨)
     if (process.env.VERCEL) {
         console.log("Running in Vercel environment. Using Base64 credentials.");
         const serviceAccountBase64 =
@@ -16,15 +17,12 @@ function getServiceAccount() {
                 "Vercel: FIREBASE_SERVICE_ACCOUNT_BASE64 environment variable is not set."
             );
         }
-        // Base64 디코딩
         const serviceAccountJson = Buffer.from(
             serviceAccountBase64,
             "base64"
         ).toString("utf-8");
         return JSON.parse(serviceAccountJson);
-    }
-    // 로컬 개발 환경일 경우
-    else {
+    } else {
         console.log(
             "Running in local environment. Reading service-account.json file."
         );
@@ -37,33 +35,41 @@ function getServiceAccount() {
                 "Local: service-account.json file not found in project root."
             );
         }
-        // 파일을 직접 읽음
         return JSON.parse(fs.readFileSync(serviceAccountPath, "utf8"));
     }
 }
 
-// Firebase Admin 초기화
-if (!admin.apps.length) {
+// Firebase Admin 초기화 (앱 인스턴스를 반환하도록 수정)
+function initializeFirebaseAdminApp() {
+    if (getApps().length > 0) {
+        return getApps()[0]; // 이미 초기화된 앱 반환
+    }
     try {
         console.log("Initializing Firebase Admin SDK...");
-        const serviceAccount = getServiceAccount(); // 위에서 정의한 함수 사용
-        admin.initializeApp({
-            credential: admin.credential.cert(serviceAccount),
+        const serviceAccount = getServiceAccount();
+        const app = initializeApp({
+            credential: cert(serviceAccount),
         });
         console.log("Firebase Admin SDK initialized successfully.");
+        return app;
     } catch (e) {
         console.error("CRITICAL: Firebase Admin SDK initialization failed.", e);
-        process.exit(1); // 초기화 실패 시 빌드 중단
+        process.exit(1);
     }
 }
 
-const db = admin.firestore();
-
-// ... generateSitemap 함수는 이전과 동일하게 둡니다 ...
+// --- 메인 로직 ---
 async function generateSitemap() {
+    const app = initializeFirebaseAdminApp();
+
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // 핵심: getFirestore 함수를 사용하여 'youtube-english' 데이터베이스를 명시적으로 지정합니다.
+    const db = getFirestore(app, "youtube-english");
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
     const baseUrl = "https://lingto.xyz";
 
-    console.log("Fetching data for sitemap...");
+    console.log("Fetching data for sitemap from 'youtube-english' database...");
     const analysesSnapshot = await db
         .collection("videoAnalyses")
         .orderBy("timestamp", "desc")
