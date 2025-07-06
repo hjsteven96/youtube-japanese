@@ -13,4 +13,4 @@ Allow: /
 Disallow: /api/ # API 경로는 크롤링할 필요 없음
 
 # 사이트맵 위치 명시
-Sitemap: https://lintgo.xyz/sitemap.xml 
+Sitemap: https://lingto.xyz/sitemap.xml 
