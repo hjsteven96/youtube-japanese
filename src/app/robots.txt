@@ -13,5 +13,4 @@ Allow: /
 Disallow: /api/ # API 경로는 크롤링할 필요 없음
 
 # 사이트맵 위치 명시
-Sitemap: https://your-domain.com/sitemap.xml 
-# ↑↑↑ 배포된 실제 도메인으로 변경해주세요. 예: https://ling-to.com/sitemap.xml
+Sitemap: https://lintgo.xyz/sitemap.xml 
