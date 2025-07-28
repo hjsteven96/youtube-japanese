@@ -139,13 +139,30 @@ const FloatingPlayerControls: React.FC<FloatingPlayerControlsProps> = ({
                             </div>
                         )}
                     </div>
+                    {/* 가로모드 */}
+                    <button
+                        onClick={() => {
+                            if (document.fullscreenElement) {
+                                document.exitFullscreen();
+                            } else {
+                                document.documentElement.requestFullscreen();
+                            }
+                        }}
+                        className={buttonClass}
+                        aria-label="가로모드 전환"
+                    >
+                        <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                        </svg>
+                    </button>
+
                     {/* 최소화 */}
                     <button
                         onClick={() => setIsMinimized(true)}
-                        className={buttonClass}
+                        className=" rounded-none w-8 h-12 flex items-center justify-center"
                         aria-label="컨트롤러 최소화"
                     >
-                        <ChevronRightIcon className="h-6 w-6 " />
+                        <ChevronRightIcon className="h-6 w-6" />
                     </button>
                 </div>
             </div>
