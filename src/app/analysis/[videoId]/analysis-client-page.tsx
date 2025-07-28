@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, Suspense, useCallback } from "react";
+import { useState, useRef, useEffect, Suspense, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import ReactPlayer from "react-player";
 import { onAuthStateChanged, User } from "firebase/auth";
@@ -78,6 +78,8 @@ function AnalysisPageComponent({
     const [authInitialized, setAuthInitialized] = useState(false);
     const [remainingTime, setRemainingTime] = useState<number | null>(null);
     const countdownTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [showKoreanSubtitle, setShowKoreanSubtitle] = useState(false);
 
     const [analysisData, setAnalysisData] = useState<GeminiResponseData | null>(
         null
@@ -284,6 +286,19 @@ function AnalysisPageComponent({
             setAuthInitialized(true);
         });
         return () => unsubscribe();
+    }, []);
+
+    // 전체화면 상태 감지
+    useEffect(() => {
+        const handleFullscreenChange = () => {
+            setIsFullscreen(!!document.fullscreenElement);
+        };
+
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        
+        return () => {
+            document.removeEventListener('fullscreenchange', handleFullscreenChange);
+        };
     }, []);
 
     useEffect(() => {
@@ -624,6 +639,138 @@ function AnalysisPageComponent({
         : PLANS.free.maxSavedWords;
     const savedExpressionsCount = savedExpressions.length;
 
+    // 자막 파싱 및 현재 활성 세그먼트 찾기 (일반 모드용)
+    const { parsedTranscript, activeSegmentIndex, currentSubtitle } = useMemo(() => {
+        if (!analysisData?.transcript_text) {
+            return { parsedTranscript: [], activeSegmentIndex: -1, currentSubtitle: "" };
+        }
+
+        const safeTranscript = String(analysisData.transcript_text || "");
+        const parsed = [];
+        const regex = /\[(?:(\d{1,2}):)?(\d{2}):(\d{2})\]([^\[]*)/g;
+        const matches = [...safeTranscript.matchAll(regex)];
+
+        for (const match of matches) {
+            const hours = match[1] ? parseInt(match[1], 10) : 0;
+            const minutes = parseInt(match[2], 10);
+            const seconds = parseInt(match[3], 10);
+            const timeInSeconds = hours * 3600 + minutes * 60 + seconds;
+            const text = match[4].trim();
+            if (text) parsed.push({ time: timeInSeconds, text });
+        }
+        
+        // 현재 시간에 해당하는 활성 세그먼트 찾기
+        const activeIndex = parsed.findIndex((segment, index) => {
+            const nextSegment = parsed[index + 1];
+            return (
+                currentTime >= segment.time &&
+                (!nextSegment || currentTime < nextSegment.time)
+            );
+        });
+
+        const currentSubtitle = activeIndex >= 0 ? parsed[activeIndex].text : "";
+
+        return { parsedTranscript: parsed, activeSegmentIndex: activeIndex, currentSubtitle };
+    }, [analysisData?.transcript_text, currentTime]);
+
+    // 전체화면 모드용 자막 (2개 세그먼트 합쳐서 표시, 2개 구간마다 변경)
+    const fullscreenSubtitle = useMemo(() => {
+        if (!isFullscreen || !analysisData?.transcript_text) {
+            return "";
+        }
+
+        const safeTranscript = String(analysisData.transcript_text || "");
+        const parsed = [];
+        const regex = /\[(?:(\d{1,2}):)?(\d{2}):(\d{2})\]([^\[]*)/g;
+        const matches = [...safeTranscript.matchAll(regex)];
+
+        for (const match of matches) {
+            const hours = match[1] ? parseInt(match[1], 10) : 0;
+            const minutes = parseInt(match[2], 10);
+            const seconds = parseInt(match[3], 10);
+            const timeInSeconds = hours * 3600 + minutes * 60 + seconds;
+            const text = match[4].trim();
+            if (text) parsed.push({ time: timeInSeconds, text });
+        }
+
+        // 현재 시간에 해당하는 활성 세그먼트 찾기
+        const activeIndex = parsed.findIndex((segment, index) => {
+            const nextSegment = parsed[index + 1];
+            return (
+                currentTime >= segment.time &&
+                (!nextSegment || currentTime < nextSegment.time)
+            );
+        });
+
+        if (activeIndex >= 0) {
+            // 짝수 인덱스(0, 2, 4...)에서 시작하는 2개 세그먼트 그룹 만들기
+            const groupStartIndex = Math.floor(activeIndex / 2) * 2;
+            const firstSegment = parsed[groupStartIndex];
+            const secondSegment = parsed[groupStartIndex + 1];
+            
+            if (firstSegment && secondSegment) {
+                return `${firstSegment.text} ${secondSegment.text}`;
+            } else if (firstSegment) {
+                return firstSegment.text;
+            }
+        }
+
+        return "";
+    }, [isFullscreen, analysisData?.transcript_text, currentTime]);
+
+    // 전체화면 모드용 한국어 자막 (2개 세그먼트 합쳐서 표시)
+    const fullscreenKoreanSubtitle = useMemo(() => {
+        if (!isFullscreen || !showKoreanSubtitle || !analysisData?.koreanTranslation?.timelineTranslation) {
+            return "";
+        }
+
+        const timelineTranslation = analysisData.koreanTranslation.timelineTranslation;
+        
+        // 현재 시간에 해당하는 활성 세그먼트 찾기
+        const activeIndex = timelineTranslation.findIndex((item: any, index: number) => {
+            const currentTimestamp = item.timestamp;
+            const nextItem = timelineTranslation[index + 1];
+            
+            // 타임스탬프를 초로 변환
+            const regex = /\[(?:(\d{1,2}):)?(\d{2}):(\d{2})\]/;
+            const match = currentTimestamp.match(regex);
+            if (!match) return false;
+            
+            const hours = match[1] ? parseInt(match[1], 10) : 0;
+            const minutes = parseInt(match[2], 10);
+            const seconds = parseInt(match[3], 10);
+            const timeInSeconds = hours * 3600 + minutes * 60 + seconds;
+            
+            let nextTimeInSeconds = Infinity;
+            if (nextItem) {
+                const nextMatch = nextItem.timestamp.match(regex);
+                if (nextMatch) {
+                    const nextHours = nextMatch[1] ? parseInt(nextMatch[1], 10) : 0;
+                    const nextMinutes = parseInt(nextMatch[2], 10);
+                    const nextSeconds = parseInt(nextMatch[3], 10);
+                    nextTimeInSeconds = nextHours * 3600 + nextMinutes * 60 + nextSeconds;
+                }
+            }
+            
+            return currentTime >= timeInSeconds && currentTime < nextTimeInSeconds;
+        });
+
+        if (activeIndex >= 0) {
+            // 짝수 인덱스에서 시작하는 2개 세그먼트 그룹 만들기
+            const groupStartIndex = Math.floor(activeIndex / 2) * 2;
+            const firstSegment = timelineTranslation[groupStartIndex];
+            const secondSegment = timelineTranslation[groupStartIndex + 1];
+            
+            if (firstSegment && secondSegment) {
+                return `${firstSegment.koreanTranslation} ${secondSegment.koreanTranslation}`;
+            } else if (firstSegment) {
+                return firstSegment.koreanTranslation;
+            }
+        }
+
+        return "";
+    }, [isFullscreen, showKoreanSubtitle, analysisData?.koreanTranslation, currentTime]);
+
     if (isRedirecting) {
         return (
             <div className="flex flex-col items-center justify-center min-h-screen">
@@ -645,6 +792,60 @@ function AnalysisPageComponent({
             <p className="text-red-500 text-lg mt-4 text-center p-4 bg-red-100 rounded-lg w-full max-w-6xl mx-auto px-4">
                 ⚠️ {error}
             </p>
+        );
+    }
+
+    // 전체화면 모드일 때 플레이어와 컨트롤러만 표시
+    if (isFullscreen && analysisData) {
+        return (
+            <div className="bg-black min-h-screen flex flex-col relative">
+                {/* 비디오 플레이어 영역 - 화면 중앙에 */}
+                <div className="flex-1 flex items-center justify-center">
+                    <VideoPlayer
+                        url={`https://www.youtube.com/watch?v=${videoId}`}
+                        playerRef={playerRef}
+                        isPlaying={isPlaying}
+                        playbackRate={playbackRate}
+                        onPlay={() => setIsPlaying(true)}
+                        onPause={() => setIsPlaying(false)}
+                        onEnded={() => setIsPlaying(false)}
+                        onProgress={(state) =>
+                            setCurrentTime(state.playedSeconds)
+                        }
+                        isMobile={isMobile}
+                    />
+                </div>
+                
+                {/* 자막 표시 영역 - 배경 없음 */}
+                {fullscreenSubtitle && (
+                    <div className={`absolute left-0 right-0 flex justify-center px-4 z-40 ${
+                        isMobile ? 'bottom-32' : 'bottom-24'
+                    }`}>
+                        <div className="max-w-4xl text-center">
+                            <p className={`leading-relaxed break-words font-medium text-white ${
+                                isMobile ? 'text-base' : 'text-xl'
+                            }`} style={{
+                                textShadow: '2px 2px 4px rgba(0,0,0,0.8)',
+                                lineHeight: '1.4'
+                            }}>
+                                {fullscreenSubtitle}
+                            </p>
+                        </div>
+                    </div>
+                )}
+                
+                {/* 전체화면에서도 모바일 컨트롤러 표시 */}
+                {isMobile && (
+                    <FloatingPlayerControls
+                        playerRef={playerRef}
+                        isPlaying={isPlaying}
+                        onPlayPause={handlePlayPause}
+                        currentTime={currentTime}
+                        playbackRate={playbackRate}
+                        onPlaybackRateChange={handlePlaybackRateChange}
+                    />
+                )}
+            </div>
         );
     }
 
