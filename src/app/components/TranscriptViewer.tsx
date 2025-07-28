@@ -569,8 +569,8 @@ const TranscriptViewer = ({
                             </span>{" "}
                             <span
                                 className={`${
-                                    isCurrent ? "font-medium" : "text-gray-600"
-                                } whitespace-pre-wrap flex-1 text-lg`}
+                                    isCurrent ? "font-normal" : "text-gray-600"
+                                } whitespace-pre-wrap flex-1 text-base`}
                             >
                                 {renderHighlightedText(segment.text)}
                             </span>

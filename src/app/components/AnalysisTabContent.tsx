@@ -2,12 +2,13 @@
 
 import React, { useMemo } from "react";
 import TranscriptViewer from "./TranscriptViewer";
+import TranslationTab from "./TranslationTab";
 import { User } from "firebase/auth";
 import SavedExpressions, { SavedExpression } from "./SavedExpressions";
 import { UserProfile } from "@/lib/plans";
 
 interface AnalysisTabContentProps {
-    activeTab: "analysis" | "transcript" | "questions";
+    activeTab: "analysis" | "transcript" | "questions" | "translation";
     analysis: any;
     transcript: string;
     currentTime: number;
@@ -30,6 +31,8 @@ interface AnalysisTabContentProps {
     onShowAlert: (config: any) => void;
     maxSavedWords: number;
     savedExpressionsCount: number;
+    videoId?: string;
+    initialTranslationData?: any;
 }
 
 const AnalysisSkeleton = () => (
@@ -335,6 +338,18 @@ const AnalysisTabContent = ({
                     )
                 )}
             </div>
+        );
+    }
+    if (activeTab === "translation") {
+        return (
+            <TranslationTab
+                transcript={transcript}
+                analysis={analysis}
+                videoId={props.videoId || ""}
+                onSeek={props.onSeek}
+                initialTranslationData={props.initialTranslationData}
+                currentTime={props.currentTime}
+            />
         );
     }
 

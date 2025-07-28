@@ -46,6 +46,8 @@ interface AnalysisTabsProps {
     // videoPlayerHeight: number; // 제거 (PC 레이아웃에서는 불필요)
     maxSavedWords: number; // AnalysisTabContent로 전달
     savedExpressionsCount: number; // AnalysisTabContent로 전달
+    videoId?: string;
+    initialTranslationData?: any;
 }
 
 // AnalysisSkeleton 제거 (AnalysisTabContent로 이동)
@@ -54,7 +56,7 @@ interface AnalysisTabsProps {
 const AnalysisTabs = (props: AnalysisTabsProps) => {
     // activeTab 상태만 여기서 관리
     const [activeTab, setActiveTab] = useState<
-        "analysis" | "transcript" | "questions"
+        "analysis" | "transcript" | "questions" | "translation"
     >("transcript");
 
     // 기존 useMemo 로직들 제거 (AnalysisTabContent로 이동)

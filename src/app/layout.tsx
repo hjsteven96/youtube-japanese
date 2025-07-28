@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 
 import { Inter, Noto_Sans_KR } from "next/font/google";
 import "./globals.css";
-import { Analytics } from "@vercel/analytics/next"; // Vercel Analytics 임포트
+// import { Analytics } from "@vercel/analytics/react"; // Vercel Analytics 임포트
 
 // 영어와 한국어에 최적화된 폰트 설정
 const inter = Inter({
@@ -128,7 +128,7 @@ export default function RootLayout({
                 {/* ★ 추가: AuthHeader 컴포넌트 포함 */}
                 {/* header 높이만큼 콘텐츠 시작 위치 조정 (fixed header 때문에) */}
                 <main id="main-content">{children}</main>
-                <Analytics /> {/* Vercel Analytics 컴포넌트 추가 */}
+              
             </body>
         </html>
     );

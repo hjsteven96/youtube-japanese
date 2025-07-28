@@ -52,6 +52,7 @@ export interface GeminiResponseData {
     thumbnailUrl?: string | null;
     duration?: number | null;
     channelName?: string | null;
+    koreanTranslation?: any;
 }
 
 interface AnalysisPageComponentProps {
@@ -112,7 +113,7 @@ function AnalysisPageComponent({
     const [isConversationModeActive, setIsConversationModeActive] =
         useState(false);
     const [activeTab, setActiveTab] = useState<
-        "analysis" | "transcript" | "questions"
+        "analysis" | "transcript" | "questions" | "translation"
     >("transcript");
     const [savedExpressions, setSavedExpressions] = useState<SavedExpression[]>(
         []
@@ -731,6 +732,8 @@ function AnalysisPageComponent({
                                         savedExpressionsCount={
                                             savedExpressionsCount
                                         }
+                                        videoId={videoId}
+                                        initialTranslationData={analysisData?.koreanTranslation}
                                     />
                                 </div>
                             </div>
@@ -813,6 +816,8 @@ function AnalysisPageComponent({
                                         savedExpressionsCount={
                                             savedExpressionsCount
                                         }
+                                        videoId={videoId}
+                                        initialTranslationData={analysisData?.koreanTranslation}
                                     />
                                 </div>
                             </div>

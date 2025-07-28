@@ -2,7 +2,7 @@
 
 import React from "react";
 
-type ActiveTab = "analysis" | "transcript" | "questions";
+type ActiveTab = "analysis" | "transcript" | "questions" | "translation";
 
 interface AnalysisTabBarProps {
     activeTab: ActiveTab;
@@ -61,6 +61,12 @@ const AnalysisTabBar = ({
             <TabButton
                 tabName="questions"
                 label="AI 대화"
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+            />
+            <TabButton
+                tabName="translation"
+                label="한국어 번역"
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}
             />
