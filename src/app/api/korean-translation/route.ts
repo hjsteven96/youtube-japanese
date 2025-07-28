@@ -52,6 +52,35 @@ function mergeShortTranslatedSegments(
 }
 
 /**
+ * [HELPER 추가] 재조합된 타임라인에서 연속적으로 중복되는 번역 내용을 제거합니다.
+ * AI 모델이 생성한 반복적인 번역문을 필터링하여 품질을 향상시킵니다.
+ * @param segments - 재조합이 완료된 번역 세그먼트 배열
+ * @returns 연속 중복이 제거된 새로운 배열
+ */
+function removeConsecutiveDuplicates(segments: TranslationSegment[]): TranslationSegment[] {
+    if (!segments || segments.length < 2) {
+        return segments;
+    }
+
+    const deduplicated: TranslationSegment[] = [segments[0]]; // 첫 번째 세그먼트는 항상 포함
+    let lastAddedTranslation = segments[0].koreanTranslation.trim();
+
+    for (let i = 1; i < segments.length; i++) {
+        const currentTranslation = segments[i].koreanTranslation.trim();
+
+        // 현재 번역이 마지막으로 추가된 번역과 다를 경우에만 추가
+        if (currentTranslation !== lastAddedTranslation) {
+            deduplicated.push(segments[i]);
+            lastAddedTranslation = currentTranslation;
+        } else {
+            console.log(`[DEDUPLICATION] 중복 제거됨: ${segments[i].timestamp} - "${currentTranslation}"`);
+        }
+    }
+
+    return deduplicated;
+}
+
+/**
  * [HELPER 1] 자막을 겹치는 부분이 있는 여러 청크로 나눕니다.
  * @param segments - 전체 자막 세그먼트 배열
  * @param chunkSizeInSeconds - 각 청크의 기본 크기 (초). 120(2분)~180(3분)을 권장합니다.
@@ -271,13 +300,15 @@ ${parsedSegments.map(seg => `${seg.timestamp} ${seg.text}`).join('\n')}
             // 청킹별 번역 함수 (로컬 함수로 정의)
             const translateChunkLocal = async (chunk: ParsedSegment[], chunkIndex: number): Promise<TranslationSegment[]> => {
                 const prompt = `
-당신은 전문 영상 자막 번역가입니다. 당신의 임무는 아래 영어 자막을 한국어로 번역하는 것입니다. 최종 결과물은 모든 타임스탬프가 유지되어야 하며, 각 줄의 번역을 모두 합쳤을 때 하나의 매우 자연스러운 문단이 되어야 합니다.
+당신은 긴 영상 자막의 일부(청크)를 번역하는 전문가입니다.
+이 청크는 전체 영상의 중간 부분이므로, 시작과 끝이 자연스럽게 이어져야 합니다.
 
-## 번역 규칙 (매우 중요):
-1.  **문맥 예측 (Lookahead):** 한 줄을 번역하기 전에, 반드시 뒤따라오는 여러 줄을 먼저 읽어서 전체 문장의 완전한 의미를 파악하세요.
-2.  **자연스러운 연결:** 각 타임스탬프의 번역 결과물이 다음 타임스탬프의 번역과 자연스럽게 연결되어야 합니다. 예를 들어, 문장이 끝나지 않았다면 "...했습니다. 그리고" 와 같이 번역하는 대신, "...했으며," 또는 "...했고," 처럼 연결되는 어미를 사용하세요.
-3.  **구조 유지:** 절대 타임스탬프를 합치거나 누락하지 마세요. 입력으로 주어진 모든 타임스탬프에 대해 반드시 개별적인 한국어 번역을 제공해야 합니다.
-4.  **의미 분배:** 파악한 전체 문장의 의미를 원본 영어 자막의 끊어진 위치에 맞게 한국어 번역에 자연스럽게 분배해주세요.
+## 번역 규칙 (매우 중요!):
+1.  **맥락 연결:** 청크의 시작 부분은 맥락 파악을 위해 이전 내용과 겹칠 수 있습니다. 이를 참고하여 자연스럽게 번역을 시작하세요.
+2.  **어미 처리:** 청크의 마지막 문장이 전체 문장의 끝이 아니라면, 반드시 다음 내용과 연결될 수 있는 부드러운 어미(예: '...했으며,', '...인데,')로 문장을 마무리하세요.
+3.  **반복 절대 금지:** **절대로 동일한 한국어 번역 내용을 연속적인 타임스탬프에 걸쳐 반복하지 마세요.** 입력 텍스트가 짧더라도(예: "uh", "and", "so"), 이전 번역을 그대로 복사해서는 안 됩니다. 각 타임스탬프마다 고유하고 차별화된 번역을 제공하세요.
+4.  **구조 유지:** 주어진 모든 타임스탬프에 대해 번역을 제공해야 합니다.
+5.  **의미 분배:** 파악한 전체 문장의 의미를 원본 영어 자막의 끊어진 위치에 맞게 한국어 번역에 자연스럽게 분배해주세요.
 
 ---
 
@@ -386,8 +417,12 @@ ${chunk.map(seg => `${seg.timestamp} ${seg.text}`).join('\\n')}
             const stitchedResults = stitchChunkResultsLocal(chunkResults, parsedSegments);
             console.log(`[TRANSLATION_STITCHING] 재조합 완료. 최종 세그먼트 수: ${stitchedResults.length}개`);
             
+            // 5.5단계: 중복 제거 (NEW STEP)
+            const deduplicatedResults = removeConsecutiveDuplicates(stitchedResults);
+            console.log(`[TRANSLATION_DEDUPLICATION] 연속 중복 제거 완료. ${stitchedResults.length}개 → ${deduplicatedResults.length}개`);
+            
             finalTranslationData = {
-                timelineTranslation: stitchedResults
+                timelineTranslation: deduplicatedResults
             };
         }
 
