@@ -53,20 +53,20 @@ const AnalysisTabBar = ({
                 setActiveTab={setActiveTab}
             />
             <TabButton
+                tabName="translation"
+                label="번역"
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+            />
+            <TabButton
                 tabName="analysis"
-                label="주요 표현"
+                label="표현"
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}
             />
             <TabButton
                 tabName="questions"
                 label="AI 대화"
-                activeTab={activeTab}
-                setActiveTab={setActiveTab}
-            />
-            <TabButton
-                tabName="translation"
-                label="한국어 번역"
                 activeTab={activeTab}
                 setActiveTab={setActiveTab}
             />
