@@ -18,37 +18,57 @@ interface ParsedSegment {
 }
 
 /**
- * 짧은 한국어 번역 세그먼트들을 자동으로 병합합니다.
- * reduce를 사용한 간단하고 안정적인 구현
+ * 한국어 번역 세그먼트들을 지능적으로 병합합니다.
+ * 양방향 병합 로직: 짧은 세그먼트를 앞으로, 긴 세그먼트가 있으면 뒤로도 병합
  * @param segments - 원본 번역 세그먼트 배열
- * @param minCharThreshold - 병합 기준이 되는 최소 글자 수
+ * @param minCharThreshold - 짧은 세그먼트 기준 (기본: 10글자)
+ * @param maxCharThreshold - 긴 세그먼트 기준 (기본: 80글자)
  * @returns 병합된 번역 세그먼트 배열
  */
 function mergeShortTranslatedSegments(
     segments: TranslationSegment[],
-    minCharThreshold: number = 5
+    minCharThreshold: number = 10,
+    maxCharThreshold: number = 80
 ): TranslationSegment[] {
     if (!segments || segments.length === 0) return [];
 
-    // reduce를 사용하여 누산기(accumulator)에 병합된 결과를 쌓아갑니다.
-    const mergedTimeline = segments.reduce<TranslationSegment[]>((acc, current) => {
-        // 누산기의 마지막 요소를 가져옵니다.
-        const lastSegment = acc.length > 0 ? acc[acc.length - 1] : null;
+    const result: TranslationSegment[] = [];
+    let i = 0;
 
-        // 현재 세그먼트가 짧고, 합칠 대상(lastSegment)이 있는 경우
-        if (lastSegment && current.koreanTranslation.trim().length <= minCharThreshold) {
-            // 마지막 세그먼트에 현재 세그먼트의 내용을 덧붙입니다.
-            lastSegment.koreanTranslation += ` ${current.koreanTranslation.trim()}`;
-        } else {
-            // 현재 세그먼트가 길거나, 첫 번째 요소인 경우
-            // 새로운 세그먼트로 누산기에 추가합니다. (원본 배열 수정을 방지하기 위해 복사)
-            acc.push({ ...current });
-        }
+    while (i < segments.length) {
+        const current = { ...segments[i] }; // 현재 세그먼트 복사
+        const currentLength = current.koreanTranslation.trim().length;
         
-        return acc;
-    }, []);
+        // 1단계: 현재 세그먼트가 짧은 경우 → 이전 세그먼트에 병합
+        if (currentLength <= minCharThreshold && result.length > 0) {
+            const lastSegment = result[result.length - 1];
+            lastSegment.koreanTranslation += ` ${current.koreanTranslation.trim()}`;
+            console.log(`[MERGE_BACKWARD] ${current.timestamp} → ${lastSegment.timestamp}: "${current.koreanTranslation.trim()}"`);
+            i++;
+            continue;
+        }
 
-    return mergedTimeline;
+        // 2단계: 현재 세그먼트가 너무 긴 경우 → 다음 세그먼트와 병합 시도
+        if (currentLength >= maxCharThreshold && i + 1 < segments.length) {
+            const next = segments[i + 1];
+            const nextLength = next.koreanTranslation.trim().length;
+            
+            // 다음 세그먼트가 짧거나 적당한 길이면 병합
+            if (nextLength <= minCharThreshold || currentLength + nextLength <= maxCharThreshold * 1.2) {
+                current.koreanTranslation += ` ${next.koreanTranslation.trim()}`;
+                console.log(`[MERGE_FORWARD] ${current.timestamp} ← ${next.timestamp}: "${next.koreanTranslation.trim()}"`);
+                i += 2; // 다음 세그먼트도 건너뛰기
+            } else {
+                i++;
+            }
+        } else {
+            i++;
+        }
+
+        result.push(current);
+    }
+
+    return result;
 }
 
 /**
@@ -430,8 +450,12 @@ ${chunk.map(seg => `${seg.timestamp} ${seg.text}`).join('\\n')}
         if (finalTranslationData && finalTranslationData.timelineTranslation) {
             const originalLength = finalTranslationData.timelineTranslation.length;
             
-            // 임계값(threshold)은 필요에 따라 조절할 수 있습니다 (예: 5글자, 7글자 등).
-            const mergedTimeline = mergeShortTranslatedSegments(finalTranslationData.timelineTranslation, 5);
+            // 양방향 병합: 10글자 이하는 앞으로, 80글자 이상은 뒤로 병합
+            const mergedTimeline = mergeShortTranslatedSegments(
+                finalTranslationData.timelineTranslation, 
+                10,  // minCharThreshold: 짧은 세그먼트 기준
+                80   // maxCharThreshold: 긴 세그먼트 기준
+            );
 
             // 가공된 데이터로 교체합니다.
             finalTranslationData.timelineTranslation = mergedTimeline;
