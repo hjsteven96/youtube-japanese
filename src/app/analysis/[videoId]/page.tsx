@@ -25,11 +25,19 @@ async function getAnalysisData(
             // 데이터를 직접 수정하는 대신 새로운 객체를 생성하여 직렬화 가능한 형태로 변환
             const serializableData: GeminiResponseData & {
                 timestamp?: string;
+                translationTimestamp?: string;
             } = { ...data };
 
             // Firestore Timestamp를 ISO 문자열로 변환
             if (serializableData.timestamp instanceof Timestamp) {
                 serializableData.timestamp = serializableData.timestamp
+                    .toDate()
+                    .toISOString();
+            }
+
+            // translationTimestamp도 Timestamp 객체일 수 있으므로 변환
+            if (serializableData.translationTimestamp instanceof Timestamp) {
+                serializableData.translationTimestamp = serializableData.translationTimestamp
                     .toDate()
                     .toISOString();
             }
