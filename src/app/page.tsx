@@ -75,7 +75,7 @@ export default async function Home() {
                             </span>
                         </h1>
                         <p className="text-gray-600 text-lg">
-                            YouTube로 시작하는 영어 🎓
+                            YouTube로 시작하는 일본어 🎓
                         </p>
                     </header>
 

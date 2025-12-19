@@ -308,8 +308,8 @@ export const useGeminiLiveConversation = ({
 
             const initialPromptText =
                 transcript && geminiAnalysis
-                    ? `Act as my English coach: start by asking me "${question}" based on the video "${geminiAnalysis.summary}, and then keep the conversation going with only follow-up questions, never answering the question yourself. KEEP ASKING question so that user can practice English speaking "`
-                    : `You are an English learning assistant. Your role is to help the user learn English by having a conversation. The user will now answer this question: "${question}"`;
+                    ? `Act as my Japanese coach: start by asking me "${question}" based on the video "${geminiAnalysis.summary}, and then keep the conversation going with only follow-up questions, never answering the question yourself. KEEP ASKING question so that user can practice Japanese speaking "`
+                    : `You are a Japanese learning assistant. Your role is to help the user learn Japanese by having a conversation. The user will now answer this question: "${question}"`;
 
             newSession.sendClientContent({
                 turns: [{ role: "user", parts: [{ text: initialPromptText }] }],

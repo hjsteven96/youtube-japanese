@@ -1,13 +1,20 @@
 import type { Metadata, Viewport } from "next";
 
-import { Inter, Noto_Sans_KR } from "next/font/google";
+import { Inter, Noto_Sans_JP, Noto_Sans_KR } from "next/font/google";
 import "./globals.css";
 // import { Analytics } from "@vercel/analytics/react"; // Vercel Analytics 임포트
 
-// 영어와 한국어에 최적화된 폰트 설정
+// 일본어와 한국어에 최적화된 폰트 설정
 const inter = Inter({
     variable: "--font-inter",
     subsets: ["latin"],
+    display: "swap",
+});
+
+const notoSansJP = Noto_Sans_JP({
+    variable: "--font-noto-sans-jp",
+    subsets: ["latin"],
+    weight: ["400", "500", "600", "700"],
     display: "swap",
 });
 
@@ -26,45 +33,44 @@ export const metadata: Metadata = {
             `https://${process.env.VERCEL_URL}` ||
             "http://localhost:3000"
     ),
-    title: "Lingto와 함께 YouTube로 영어 공부하세요",
+    title: "Lingto와 함께 YouTube로 일본어 공부하세요",
     description:
-        "YouTube 영상을 AI로 분석하여 실전 영어를 학습하세요. 자막, 핵심 표현, AI 대화 연습까지!",
+        "YouTube 영상을 AI로 분석하여 실전 일본어를 학습하세요. 자막, 핵심 표현, AI 대화 연습까지!",
     keywords: [
-        "영어학습",
-        "YouTube 영어",
-        "AI 영어교육",
-        "영어회화",
-        "미드 자막",
-        "영어 자막",
-        "영어 공부",
-        "미드 영어",
-        "유튜브 영어",
+        "일본어학습",
+        "YouTube 일본어",
+        "AI 일본어교육",
+        "일본어회화",
+        "일본어 자막",
+        "일본어 공부",
+        "애니 일본어",
+        "유튜브 일본어",
         "영상학습",
     ],
     authors: [{ name: "timetobe.inc" }],
     // PWA를 위한 manifest 경로
     manifest: "/manifest.json",
     openGraph: {
-        title: "YouTube로 배우는 영어 - AI 영어학습",
+        title: "YouTube로 배우는 일본어 - AI 일본어학습",
         description:
-            "YouTube 영상으로 실전 영어를 배우고 AI와 대화하며 연습하세요",
+            "YouTube 영상으로 실전 일본어를 배우고 AI와 대화하며 연습하세요",
         type: "website",
         locale: "ko_KR",
-        alternateLocale: "en_US",
-        siteName: "YouTube English Learning",
+        alternateLocale: "ja_JP",
+        siteName: "YouTube Japanese Learning",
         images: [
             {
                 url: "/og-image.png", // metadataBase를 기준으로 절대 경로가 됨
                 width: 800,
                 height: 400,
-                alt: "YouTube로 배우는 영어, 링투",
+                alt: "YouTube로 배우는 일본어, 링투",
             },
         ],
     },
     twitter: {
         card: "summary_large_image",
-        title: "YouTube로 배우는 영어 | AI 영어학습",
-        description: "YouTube 영상을 AI로 분석하여 실전 영어를 학습하세요",
+        title: "YouTube로 배우는 일본어 | AI 일본어학습",
+        description: "YouTube 영상을 AI로 분석하여 실전 일본어를 학습하세요",
         images: ["/twitter-image.png"], // metadataBase를 기준으로 절대 경로가 됨
     },
     icons: {
@@ -91,16 +97,19 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="ko" className={`${inter.variable} ${notoSansKR.variable}`}>
+        <html
+            lang="ko"
+            className={`${inter.variable} ${notoSansJP.variable} ${notoSansKR.variable}`}
+        >
             <head>
                 {/* 추가적인 메타 태그 */}
-                <meta name="Lin:cue" content="YouTube English Learning" />
+                <meta name="Lin:cue" content="YouTube Japanese Learning" />
                 <meta name="apple-mobile-web-app-capable" content="yes" />
                 <meta
                     name="apple-mobile-web-app-status-bar-style"
                     content="default"
                 />
-                <meta name="apple-mobile-web-app-title" content="영어학습" />
+                <meta name="apple-mobile-web-app-title" content="일본어학습" />
                 <meta name="format-detection" content="telephone=no" />
                 <meta name="mobile-web-app-capable" content="yes" />
 
@@ -115,7 +124,7 @@ export default function RootLayout({
             <body
                 className={`antialiased bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 min-h-screen`}
                 style={{
-                    fontFamily: `var(--font-inter), var(--font-noto-sans-kr), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`,
+                    fontFamily: `var(--font-inter), var(--font-noto-sans-jp), var(--font-noto-sans-kr), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`,
                 }}
             >
                 {/* 접근성을 위한 Skip to content 링크 */}

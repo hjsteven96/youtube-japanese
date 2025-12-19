@@ -130,6 +130,14 @@ function AnalysisPageComponent({
         setShowToast(false);
     }, []);
 
+    const handleTranslationReady = useCallback((translationData: any) => {
+        setAnalysisData((currentData) => {
+            if (!currentData) return currentData;
+            if (currentData.koreanTranslation) return currentData;
+            return { ...currentData, koreanTranslation: translationData };
+        });
+    }, []);
+
     const saveLearningHistory = useCallback(
         async (
             currentUser: User,
@@ -935,6 +943,7 @@ function AnalysisPageComponent({
                                         }
                                         videoId={videoId}
                                         initialTranslationData={analysisData?.koreanTranslation}
+                                        onTranslationReady={handleTranslationReady}
                                     />
                                 </div>
                             </div>
@@ -1019,6 +1028,7 @@ function AnalysisPageComponent({
                                         }
                                         videoId={videoId}
                                         initialTranslationData={analysisData?.koreanTranslation}
+                                        onTranslationReady={handleTranslationReady}
                                     />
                                 </div>
                             </div>

@@ -70,7 +70,7 @@ export default function AuthHeader() {
                         Ling:to
                     </span>
                     <span className="hidden sm:inline text-gray-500 text-sm">
-                        유튜브로 배우는 영어
+                        유튜브로 배우는 일본어
                     </span>
                 </Link>
 

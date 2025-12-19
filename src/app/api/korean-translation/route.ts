@@ -168,6 +168,13 @@ function parseTimestampToSeconds(timestamp: string): number {
 
 export async function POST(request: NextRequest) {
     try {
+        if (!GOOGLE_API_KEY) {
+            return NextResponse.json(
+                { error: "GOOGLE_API_KEY가 설정되지 않았습니다." },
+                { status: 500 }
+            );
+        }
+
         const body = await request.json();
         const { transcript, analysis, videoId } = body;
 
@@ -241,17 +248,17 @@ export async function POST(request: NextRequest) {
             console.log(`[TRANSLATION_SHORT_VIDEO] 짧은 영상 감지 (${totalDuration}초), 단일 요청 방식 사용`);
             
             const prompt = `
-당신은 전문 영상 자막 번역가입니다. 당신의 임무는 아래 영어 자막을 한국어로 번역하는 것입니다. 최종 결과물은 모든 타임스탬프가 유지되어야 하며, 각 줄의 번역을 모두 합쳤을 때 하나의 매우 자연스러운 문단이 되어야 합니다.
+당신은 전문 영상 자막 번역가입니다. 당신의 임무는 아래 일본어 자막을 한국어로 번역하는 것입니다. 최종 결과물은 모든 타임스탬프가 유지되어야 하며, 각 줄의 번역을 모두 합쳤을 때 하나의 매우 자연스러운 문단이 되어야 합니다.
 
 ## 번역 규칙 (매우 중요):
 1.  **문맥 예측 (Lookahead):** 한 줄을 번역하기 전에, 반드시 뒤따라오는 여러 줄을 먼저 읽어서 전체 문장의 완전한 의미를 파악하세요.
 2.  **자연스러운 연결:** 각 타임스탬프의 번역 결과물이 다음 타임스탬프의 번역과 자연스럽게 연결되어야 합니다. 예를 들어, 문장이 끝나지 않았다면 "...했습니다. 그리고" 와 같이 번역하는 대신, "...했으며," 또는 "...했고," 처럼 연결되는 어미를 사용하세요.
 3.  **구조 유지:** 절대 타임스탬프를 합치거나 누락하지 마세요. 입력으로 주어진 모든 타임스탬프에 대해 반드시 개별적인 한국어 번역을 제공해야 합니다.
-4.  **의미 분배:** 파악한 전체 문장의 의미를 원본 영어 자막의 끊어진 위치에 맞게 한국어 번역에 자연스럽게 분배해주세요.
+4.  **의미 분배:** 파악한 전체 문장의 의미를 원본 일본어 자막의 끊어진 위치에 맞게 한국어 번역에 자연스럽게 분배해주세요.
 
 ---
 
-## 번역할 영어 자막 (타임스탬프별):
+## 번역할 일본어 자막 (타임스탬프별):
 ${parsedSegments.map(seg => `${seg.timestamp} ${seg.text}`).join('\n')}
 
 ---
@@ -328,11 +335,11 @@ ${parsedSegments.map(seg => `${seg.timestamp} ${seg.text}`).join('\n')}
 2.  **어미 처리:** 청크의 마지막 문장이 전체 문장의 끝이 아니라면, 반드시 다음 내용과 연결될 수 있는 부드러운 어미(예: '...했으며,', '...인데,')로 문장을 마무리하세요.
 3.  **반복 절대 금지:** **절대로 동일한 한국어 번역 내용을 연속적인 타임스탬프에 걸쳐 반복하지 마세요.** 입력 텍스트가 짧더라도(예: "uh", "and", "so"), 이전 번역을 그대로 복사해서는 안 됩니다. 각 타임스탬프마다 고유하고 차별화된 번역을 제공하세요.
 4.  **구조 유지:** 주어진 모든 타임스탬프에 대해 번역을 제공해야 합니다.
-5.  **의미 분배:** 파악한 전체 문장의 의미를 원본 영어 자막의 끊어진 위치에 맞게 한국어 번역에 자연스럽게 분배해주세요.
+5.  **의미 분배:** 파악한 전체 문장의 의미를 원본 일본어 자막의 끊어진 위치에 맞게 한국어 번역에 자연스럽게 분배해주세요.
 
 ---
 
-## 번역할 영어 자막 (타임스탬프별):
+## 번역할 일본어 자막 (타임스탬프별):
 ${chunk.map(seg => `${seg.timestamp} ${seg.text}`).join('\\n')}
 
 ---
@@ -484,6 +491,23 @@ ${chunk.map(seg => `${seg.timestamp} ${seg.text}`).join('\\n')}
 
     } catch (error) {
         console.error("Korean translation error:", error);
+        const message = error instanceof Error ? error.message : String(error);
+        const retryMatch = message.match(/retry in ([0-9.]+)s/i);
+        if (
+            message.toLowerCase().includes("quota") ||
+            message.toLowerCase().includes("rate limit")
+        ) {
+            return NextResponse.json(
+                {
+                    error: "요청이 많아 잠시 후 다시 시도해주세요.",
+                    retryAfterSeconds: retryMatch
+                        ? Math.ceil(parseFloat(retryMatch[1]))
+                        : 60,
+                },
+                { status: 429 }
+            );
+        }
+
         return NextResponse.json(
             { error: "한국어 번역 중 오류가 발생했습니다." },
             { status: 500 }

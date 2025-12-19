@@ -51,14 +51,14 @@
     "main": "index.js",
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/hjsteven96/youtube-english.git"
+        "url": "git+https://github.com/hjsteven96/youtube-japanese.git"
     },
     "keywords": [],
     "author": "",
     "license": "ISC",
     "type": "commonjs",
     "bugs": {
-        "url": "https://github.com/hjsteven96/youtube-english/issues"
+        "url": "https://github.com/hjsteven96/youtube-japanese/issues"
     },
-    "homepage": "https://github.com/hjsteven96/youtube-english#readme"
+    "homepage": "https://github.com/hjsteven96/youtube-japanese#readme"
 }

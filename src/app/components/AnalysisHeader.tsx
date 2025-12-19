@@ -58,7 +58,7 @@ export default function AnalysisHeader() {
     const handleShare = async () => {
         const shareData = {
             title: document.title,
-            text: "유튜브 영상으로 함께 영어 공부해요!",
+            text: "유튜브 영상으로 함께 일본어 공부해요!",
             url: window.location.href,
         };
 

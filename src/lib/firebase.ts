@@ -21,7 +21,10 @@ const app: FirebaseApp = !getApps().length
     ? initializeApp(firebaseConfig)
     : getApp();
 const auth: Auth = getAuth(app);
-const db: Firestore = getFirestore(app, "youtube-english"); // 데이터베이스 이름 지정은 선택사항입니다.
+const firestoreDbId = process.env.NEXT_PUBLIC_FIREBASE_DB_ID;
+const db: Firestore = firestoreDbId
+    ? getFirestore(app, firestoreDbId)
+    : getFirestore(app); // 데이터베이스 이름 지정은 선택사항입니다.
 
 // Check if window is defined to ensure client-side initialization
 const getAnalytics = (): Analytics | null => {

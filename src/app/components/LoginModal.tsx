@@ -75,7 +75,7 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
                                 <span className="font-semibold text-blue-600">
                                     유튜브 영상
                                 </span>
-                                으로 재밌게 영어 공부하세요!
+                                으로 재밌게 일본어 공부하세요!
                             </p>
                         </div>
 

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a YouTube English Learning Application built with Next.js 15, React 19, and TypeScript. The app allows users to input YouTube URLs, analyze video content using Google's Gemini AI, and engage in real-time voice conversations about the video content using Gemini Live API.
+This is a YouTube Japanese Learning Application built with Next.js 15, React 19, and TypeScript. The app allows users to input YouTube URLs, analyze video content using Google's Gemini AI, and engage in real-time voice conversations about the video content using Gemini Live API.
 
 ## Key Architecture Components
 

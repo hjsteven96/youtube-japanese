@@ -49,11 +49,20 @@ export async function POST(req: NextRequest) {
         const downsubData = await downsubResponse.json();
 
         if (downsubData.status === "success" && downsubData.data && downsubData.data.subtitles) {
-            // 영어 자막 또는 첫 번째 사용 가능한 자막 찾기
-            const englishSubtitle = downsubData.data.subtitles.find((sub: any) => sub.language === "English") || downsubData.data.subtitles[0];
+            // 일본어 자막 또는 첫 번째 사용 가능한 자막 찾기
+            const japaneseSubtitle =
+                downsubData.data.subtitles.find((sub: any) => {
+                    const language = (sub.language || "").toLowerCase();
+                    return (
+                        language.includes("japanese") ||
+                        language.includes("日本語") ||
+                        language === "ja" ||
+                        language === "ja-jp"
+                    );
+                }) || downsubData.data.subtitles[0];
 
-            if (englishSubtitle) {
-                const srtFormat = englishSubtitle.formats.find((format: any) => format.format === "srt"); // .srt 형식 찾기
+            if (japaneseSubtitle) {
+                const srtFormat = japaneseSubtitle.formats.find((format: any) => format.format === "srt"); // .srt 형식 찾기
                 if (srtFormat && srtFormat.url) {
                     const subtitleTextResponse = await fetch(srtFormat.url);
                     if (!subtitleTextResponse.ok) {

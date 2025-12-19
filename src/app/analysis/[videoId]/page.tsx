@@ -78,12 +78,12 @@ export async function generateMetadata({
     }
 
     const title = youtubeTitle
-        ? `${youtubeTitle} - AI 영어 분석 노트 | Ling:to`
-        : "AI 영어 학습 | Ling:to";
+        ? `${youtubeTitle} - AI 일본어 분석 노트 | Ling:to`
+        : "AI 일본어 학습 | Ling:to";
 
     const description = youtubeTitle
-        ? `'${youtubeTitle}' 영상의 AI 분석 결과, 전체 자막, 핵심 표현으로 실전 영어를 마스터하세요.`
-        : "YouTube 영상을 AI로 분석하여 실전 영어를 학습하세요. 자막, 핵심 표현, AI 대화 연습까지!";
+        ? `'${youtubeTitle}' 영상의 AI 분석 결과, 전체 자막, 핵심 표현으로 실전 일본어를 마스터하세요.`
+        : "YouTube 영상을 AI로 분석하여 실전 일본어를 학습하세요. 자막, 핵심 표현, AI 대화 연습까지!";
 
     const imageUrl =
         cachedData?.thumbnailUrl ||
@@ -97,13 +97,13 @@ export async function generateMetadata({
         title,
         description,
         keywords: [
-            "영어학습",
-            "YouTube 영어",
-            "AI 영어교육",
-            "영어회화",
-            "미드 영어",
-            "영어 쉐도잉",
-            "영어 자막",
+            "일본어학습",
+            "YouTube 일본어",
+            "AI 일본어교육",
+            "일본어회화",
+            "애니 일본어",
+            "일본어 쉐도잉",
+            "일본어 자막",
             youtubeTitle || "",
             ...(cachedData?.analysis?.keywords || []),
         ].filter(Boolean),
@@ -120,7 +120,7 @@ export async function generateMetadata({
                     alt: youtubeTitle || "Video Thumbnail",
                 },
             ],
-            siteName: "Ling:to - AI English Learning",
+            siteName: "Ling:to - AI Japanese Learning",
         },
         twitter: {
             card: "summary_large_image",
@@ -165,15 +165,15 @@ export default async function AnalysisPage({
         return {
             "@context": "https://schema.org",
             "@type": "LearningResource",
-            name: `유튜브 영어 공부 - ${data.youtubeTitle} - 자막/해석/쉐도잉은 링토, Lingto AI 영어 학습`,
-            description: `"${data.youtubeTitle}" 유튜브 영상으로 배우는 실전 영어. AI가 분석한 핵심 표현(${learningExpressions})과 단어(${learningKeywords}), 전체 자막을 제공합니다.`,
+            name: `유튜브 일본어 공부 - ${data.youtubeTitle} - 자막/해석/쉐도잉은 링토, Lingto AI 일본어 학습`,
+            description: `"${data.youtubeTitle}" 유튜브 영상으로 배우는 실전 일본어. AI가 분석한 핵심 표현(${learningExpressions})과 단어(${learningKeywords}), 전체 자막을 제공합니다.`,
             url: pageUrl,
             image: data.thumbnailUrl,
             author: { "@type": "Organization", name: "Ling:to" },
             publisher: { "@type": "Organization", name: "Ling:to" },
-            inLanguage: "ko",
+            inLanguage: "ja",
             learningResourceType: "자막 분석",
-            educationalUse: "언어 학습, 영어 회화, 듣기 연습",
+            educationalUse: "언어 학습, 일본어 회화, 듣기 연습",
             timeRequired: timeRequired,
             isBasedOn: {
                 "@type": "VideoObject",

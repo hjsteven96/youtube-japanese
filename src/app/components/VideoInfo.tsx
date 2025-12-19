@@ -16,7 +16,7 @@ const VideoInfo = ({ title, summary, isAnalysisLoading }: VideoInfoProps) => {
             {title && (
                 <div className="mb-2 lg:mt-3">
                     <h1 className="text-lg lg:text-xl font-bold text-gray-800">
-                        {title} 자막으로 영어 공부하기
+                        {title} 자막으로 일본어 공부하기
                     </h1>
                 </div>
             )}

@@ -15,15 +15,15 @@ export async function POST(req: NextRequest) {
 
     // [수정] 따옴표 이스케이프 규칙을 명시적으로 추가하여 JSON 오류 가능성 감소
     const prompt = `
-    Based on the provided English transcript, generate a structured JSON object for a Korean-speaking English learner.
+    Based on the provided Japanese transcript, generate a structured JSON object for a Korean-speaking Japanese learner.
 
     **CRITICAL RULE:** All string values within the JSON output MUST have internal double quotes properly escaped with a backslash (e.g., "He said, \\"Hi!\\""). This is essential for valid JSON.
 
     The JSON object must contain the following keys:
     - 'summary': A concise summary of the video content in KOREAN (1-2 sentences).
-    - 'keywords': An array of 5 key English terms that would be useful for a learner.
-    - 'slang_expressions': An array of objects, where each object has an 'expression' (the English slang/idiom) and a 'meaning' (its explanation in KOREAN).
-    - 'main_questions': An array of 2 main questions in ENGLISH based on the video's content, designed to encourage speaking practice. Each question must be a single, distinct question. Ensure they are concise, simple, and easy to understand, focusing on comprehension rather than rote memorization.
+    - 'keywords': An array of 5 key Japanese terms that would be useful for a learner.
+    - 'slang_expressions': An array of objects, where each object has an 'expression' (the Japanese slang/idiom) and a 'meaning' (its explanation in KOREAN).
+    - 'main_questions': An array of 2 main questions in JAPANESE based on the video's content, designed to encourage speaking practice. Each question must be a single, distinct question. Ensure they are concise, simple, and easy to understand, focusing on comprehension rather than rote memorization.
     `;
 
     try {

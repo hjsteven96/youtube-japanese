@@ -63,13 +63,16 @@ async function generateSitemap() {
     const app = initializeFirebaseAdminApp();
 
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-    // 핵심: getFirestore 함수를 사용하여 'youtube-english' 데이터베이스를 명시적으로 지정합니다.
-    const db = getFirestore(app, "youtube-english");
+    // 핵심: getFirestore 함수를 사용하여 선택한 데이터베이스를 명시적으로 지정합니다.
+    const dbId = process.env.FIREBASE_DB_ID;
+    const db = dbId ? getFirestore(app, dbId) : getFirestore(app);
     // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     const baseUrl = "https://lingto.xyz";
 
-    console.log("Fetching data for sitemap from 'youtube-english' database...");
+    console.log(
+        `Fetching data for sitemap from '${dbId || "(default)"}' database...`
+    );
     const analysesSnapshot = await db
         .collection("videoAnalyses")
         .orderBy("timestamp", "desc")

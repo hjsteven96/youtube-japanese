@@ -28,6 +28,7 @@ export default function HomeClientContent() {
     const [error, setError] = useState("");
     const [user, setUser] = useState<User | null>(null);
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+    const [isProfileLoading, setIsProfileLoading] = useState(false);
     const [isAlertVisible, setIsAlertVisible] = useState(false);
     const [alertConfig, setAlertConfig] = useState({
         title: "",
@@ -45,10 +46,19 @@ export default function HomeClientContent() {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             setUser(currentUser);
             if (currentUser) {
-                const profile = await createUserProfile(currentUser);
-                setUserProfile(profile);
+                setIsProfileLoading(true);
+                try {
+                    const profile = await createUserProfile(currentUser);
+                    setUserProfile(profile);
+                } catch (profileError) {
+                    console.error("Failed to load user profile:", profileError);
+                    setUserProfile(null);
+                } finally {
+                    setIsProfileLoading(false);
+                }
             } else {
                 setUserProfile(null);
+                setIsProfileLoading(false);
             }
         });
         return () => unsubscribe();
@@ -116,7 +126,7 @@ export default function HomeClientContent() {
     const handleAnalysisClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
         e.preventDefault();
 
-        if (!user || !userProfile) {
+        if (!user) {
             setAlertConfig({
                 title: "로그인 필요",
                 subtitle: "영상 분석을 위해서는 로그인이 필요합니다.",
@@ -132,7 +142,7 @@ export default function HomeClientContent() {
             return;
         }
 
-        const plan = PLANS[userProfile.plan];
+        const plan = userProfile ? PLANS[userProfile.plan] : PLANS.free;
 
         if (videoInfo && videoInfo.duration > plan.maxVideoDuration) {
             setAlertConfig({
@@ -160,7 +170,10 @@ export default function HomeClientContent() {
             return;
         }
 
-        if (userProfile.usage.analysisCount >= plan.dailyAnalysisLimit) {
+        if (
+            userProfile &&
+            userProfile.usage.analysisCount >= plan.dailyAnalysisLimit
+        ) {
             setAlertConfig({
                 title: "일일 분석 한도 초과",
                 subtitle: `오늘의 분석 횟수(${plan.dailyAnalysisLimit}회)를 모두 사용했습니다. 내일 다시 시도해주세요.`,

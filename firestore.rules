@@ -1,22 +1,23 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /users/{userId}/videoAnalyses/{docId} {
+    // 사용자 프로필 및 하위 컬렉션
+    match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
 
-      // videoActivityLogs 컬렉션: 로그인된 사용자만 생성 가능
-    // (쓰기 권한은 앱에서 활동을 기록할 때 필요)
-    // 읽기 권한은 Firebase Function에서만 필요하므로, 클라이언트에서는 읽기 허용 안 함
-    match /videoActivityLogs/{activityId} {
-      allow create: if request.auth != null; // 로그인된 사용자만 로그 생성
-      allow read, write, update, delete: if false; // 클라이언트에서 읽기/쓰기/업데이트/삭제 불가능
+      match /learningHistory/{videoId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+
+      match /savedInterpretations/{interpretationId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
     }
 
-    // trendingVideos 컬렉션: 모든 사용자(로그인/비로그인)가 읽기만 가능
-    // 쓰기 권한은 Firebase Function에서만 허용 (여기서는 규칙에 명시하지 않음, Function 서비스 계정 권한으로 처리)
-    match /trendingVideos/{document=**} {
-      allow read: if true; // 모든 사용자가 읽기 가능
-      allow write: if false; // 클라이언트에서 쓰기 불가능
+    // 영상 분석 캐시: 읽기는 공개, 쓰기는 로그인 사용자만
+    match /videoAnalyses/{docId} {
+      allow read: if true;
+      allow write: if request.auth != null;
     }
   }
-} 
+}

@@ -33,6 +33,7 @@ interface AnalysisTabContentProps {
     savedExpressionsCount: number;
     videoId?: string;
     initialTranslationData?: any;
+    onTranslationReady?: (data: any) => void;
 }
 
 const AnalysisSkeleton = () => (
@@ -349,6 +350,7 @@ const AnalysisTabContent = ({
                 onSeek={props.onSeek}
                 initialTranslationData={props.initialTranslationData}
                 currentTime={props.currentTime}
+                onTranslationReady={props.onTranslationReady}
             />
         );
     }

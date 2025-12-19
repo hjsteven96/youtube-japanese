@@ -1,6 +1,6 @@
 ### **DB 테이블 구조 및 기록 시점 명세**
 
-이 문서는 AI English 프로젝트에서 사용하는 Firestore 데이터베이스의 구조와 데이터가 생성/수정되는 시점을 설명합니다.
+이 문서는 AI 일본어 프로젝트에서 사용하는 Firestore 데이터베이스의 구조와 데이터가 생성/수정되는 시점을 설명합니다.
 
 #### **개요**
 
@@ -27,7 +27,7 @@
 | `analysis`            | `Object (Map)`      | Gemini API를 통해 얻은 영상 분석 결과 객체. 아래의 하위 필드를 포함합니다.                               |
 | ┣ `summary`           | `String`            | 영상 내용 요약 (1-2 문장)                                                                                |
 | ┣ `keywords`          | `Array<String>`     | 영상의 핵심 단어 목록                                                                                    |
-| ┣ `slang_expressions` | `Array<Object>`     | 영상에 나온 주요 표현(슬랭, 숙어 등)과 그 의미 목록. 각 객체는 `expression`과 `meaning` 필드를 가집니다. |
+| ┣ `slang_expressions` | `Array<Object>`     | 영상에 나온 주요 표현(속어, 관용구 등)과 그 의미 목록. 각 객체는 `expression`과 `meaning` 필드를 가집니다. |
 | ┣ `main_questions`    | `Array<String>`     | 영상 내용을 기반으로 생성된 AI 대화 시작 질문 목록                                                       |
 | `transcript_text`     | `String`            | 타임스탬프(`[MM:SS]`)가 포함된 영상 전체 스크립트 텍스트                                                 |
 | `youtubeTitle`        | `String`            | YouTube 영상의 원본 제목                                                                                 |

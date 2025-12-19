@@ -17,6 +17,7 @@ interface TranslationTabProps {
     onSeek?: (time: number) => void;
     initialTranslationData?: TranslationData | null;
     currentTime?: number;
+    onTranslationReady?: (data: TranslationData) => void;
 }
 
 const TranslationSkeleton = () => (
@@ -54,12 +55,23 @@ const TranslationTab: React.FC<TranslationTabProps> = ({
     onSeek,
     initialTranslationData,
     currentTime = 0,
+    onTranslationReady,
 }) => {
     const [translationData, setTranslationData] = useState<TranslationData | null>(initialTranslationData || null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState("");
     const segmentRefs = useRef<(HTMLParagraphElement | null)[]>([]);
     const isInitialRender = useRef(true);
+    const requestState = useRef({
+        inFlight: false,
+        retryUntilMs: 0,
+    });
+
+    useEffect(() => {
+        if (initialTranslationData && !translationData) {
+            setTranslationData(initialTranslationData);
+        }
+    }, [initialTranslationData, translationData]);
 
     useEffect(() => {
         const fetchTranslation = async () => {
@@ -67,9 +79,15 @@ const TranslationTab: React.FC<TranslationTabProps> = ({
             
             // 이미 번역 데이터가 있으면 API 호출하지 않음
             if (translationData) return;
+            if (requestState.current.inFlight) return;
+            if (Date.now() < requestState.current.retryUntilMs) {
+                setError("요청이 많아 잠시 후 다시 시도해주세요.");
+                return;
+            }
             
             setIsLoading(true);
             setError("");
+            requestState.current.inFlight = true;
             
             try {
                 const response = await fetch("/api/korean-translation", {
@@ -84,22 +102,31 @@ const TranslationTab: React.FC<TranslationTabProps> = ({
                     }),
                 });
 
+                const data = await response.json();
+
                 if (!response.ok) {
-                    throw new Error("번역 요청에 실패했습니다.");
+                    if (typeof data?.retryAfterSeconds === "number") {
+                        requestState.current.retryUntilMs =
+                            Date.now() + data.retryAfterSeconds * 1000;
+                    }
+                    throw new Error(data?.error || "번역 요청에 실패했습니다.");
                 }
 
-                const data = await response.json();
                 setTranslationData(data.translation);
+                if (data.translation && onTranslationReady) {
+                    onTranslationReady(data.translation);
+                }
             } catch (err: any) {
                 console.error("Translation error:", err);
                 setError(err.message || "번역 중 오류가 발생했습니다.");
             } finally {
                 setIsLoading(false);
+                requestState.current.inFlight = false;
             }
         };
 
         fetchTranslation();
-    }, [transcript, analysis, translationData]);
+    }, [transcript, videoId, translationData]);
 
     // 현재 재생 중인 세그먼트를 찾는 로직
     const { activeSegmentIndex } = useMemo(() => {

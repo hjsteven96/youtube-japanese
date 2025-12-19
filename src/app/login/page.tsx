@@ -71,10 +71,10 @@ export default function LoginPage() {
 
     // === 데모 상태 및 핸들러들 ===
     const sampleTranscript = [
-        { time: 0, text: "Hello, everyone. Welcome back to my channel." },
-        { time: 5, text: "Today, we're going to talk about a very interesting topic." },
-        { time: 10, text: "It's about learning English through YouTube videos." },
-        { time: 15, text: "Ling:to helps you achieve that efficiently." },
+        { time: 0, text: "こんにちは、みなさん。チャンネルへようこそ。" },
+        { time: 5, text: "今日はとても面白いテーマについて話します。" },
+        { time: 10, text: "YouTubeで日本語を学ぶ方法です。" },
+        { time: 15, text: "Ling:toなら楽しく続けられます。" },
     ];
     const [currentSegmentIndex, setCurrentSegmentIndex] = useState(0);
     const [isPlayingTranscript, setIsPlayingTranscript] = useState(false);
@@ -93,25 +93,30 @@ export default function LoginPage() {
         return () => clearInterval(timer);
     }, [isPlayingTranscript, sampleTranscript.length]);
     
-    const sampleSentence = "Ling:to provides interesting and challenging phrases for you.";
+    const sampleSentence = "Ling:toは役に立つ日本語の表現を届けます。";
     const aiInterpretations: { [key: string]: string } = {
-        "provides": "제공하다: 필요한 것을 주거나 이용할 수 있게 하다.",
-        "interesting": "흥미로운: 호기심을 자극하거나 주의를 끄는.",
-        "challenging": "도전적인: 어렵지만 성취감을 주는.",
-        "phrases": "구문/표현: 둘 이상의 단어로 이루어진 말의 단위.",
+        "役に立つ": "유용하다: 실제 상황에서 도움이 되는.",
+        "日本語": "일본어: 일본에서 사용하는 언어.",
+        "表現": "표현: 뜻이나 감정을 드러내는 말.",
+        "届けます": "전달합니다: 상대에게 전해 줍니다.",
     };
     const [selectedText, setSelectedText] = useState<string | null>(null);
     const [tooltipPosition, setTooltipPosition] = useState<{ top: number; left: number } | null>(null);
     
     const handleTextSelection = () => {
         const selection = window.getSelection();
-        const text = selection?.toString().trim().replace(/[^a-zA-Z]/g, '').toLowerCase();
-    
-        if (text && aiInterpretations[text]) {
+        const rawText = selection?.toString().trim();
+        const cleanedText = rawText?.replace(/[^\p{L}]/gu, "");
+        const normalizedText =
+            cleanedText && /[A-Za-z]/.test(cleanedText)
+                ? cleanedText.toLowerCase()
+                : cleanedText;
+
+        if (normalizedText && aiInterpretations[normalizedText]) {
             const range = selection?.getRangeAt(0);
             const rect = range?.getBoundingClientRect();
             if (rect && rect.width > 0) {
-                setSelectedText(text);
+                setSelectedText(normalizedText);
                 setTooltipPosition({ top: rect.top, left: rect.left + rect.width / 2 });
             } else { setSelectedText(null); }
         } else { setSelectedText(null); }
@@ -126,11 +131,11 @@ export default function LoginPage() {
     }, []);
 
     const testimonials = [
-        { name: "김민준", role: "대학생 (경영학과)", avatar: "🧑‍🎓", review: "전공 강의가 영어라 막막했는데, Ling:to로 관련 분야 유튜브 보면서 공부하니 배경지식이랑 영어가 한번에 잡혀요. AI 해석 기능은 진짜 신의 한 수!" },
-        { name: "박서연", role: "마케터 (3년차)", avatar: "👩‍💼", review: "해외 컨퍼런스 영상 볼 때마다 자막 찾기 바빴는데, 이젠 그럴 필요가 없어요. AI 대화 기능으로 발표 연습까지 하니 자신감이 붙네요." },
-        { name: "이현우", role: "소프트웨어 개발자", avatar: "👨‍💻", review: "기술 관련 해외 유튜브 채널을 자막 없이 바로 이해할 수 있다는 게 이렇게 편할 줄 몰랐습니다. 개발자에게 영어는 필수인데, 최고의 툴이에요." },
-        { name: "최지아", role: "취업 준비생", avatar: "👩‍🎓", review: "영어 면접 때문에 스트레스가 많았는데, 관심있는 TED 영상으로 공부하고 AI랑 모의 면접처럼 대화하니 두려움이 많이 사라졌어요. 강추합니다!" },
-        { name: "정은경", role: "프리랜서 번역가", avatar: "✍️", review: "아이들 재우고 미드 보는 게 낙이었는데, 이제는 그냥 보는 게 아니라 영어 공부까지 되네요. 하루 30분, 저를 위한 최고의 투자입니다." }
+        { name: "김민준", role: "대학생 (경영학과)", avatar: "🧑‍🎓", review: "교환학생 준비 때문에 일본어가 급했는데, Ling:to로 일본 유튜브를 보면서 공부하니 듣기랑 어휘가 동시에 늘어요. AI 해석 기능은 진짜 신의 한 수!" },
+        { name: "박서연", role: "마케터 (3년차)", avatar: "👩‍💼", review: "일본 광고 캠페인 사례 찾을 때마다 자막이 없어서 힘들었는데, 이제는 분석과 회화 연습까지 한 번에 됩니다." },
+        { name: "이현우", role: "소프트웨어 개발자", avatar: "👨‍💻", review: "일본 개발자 유튜브 채널을 자막 없이 바로 이해하는 게 목표였는데, 꾸준히 하니 자연스러운 표현이 귀에 들어옵니다." },
+        { name: "최지아", role: "취업 준비생", avatar: "👩‍🎓", review: "일본어 면접 준비가 막막했는데, 관심 있는 영상으로 공부하고 AI랑 모의 면접처럼 대화하니 자신감이 생겼어요." },
+        { name: "정은경", role: "프리랜서 번역가", avatar: "✍️", review: "아이들 재우고 일본 드라마 보는 게 낙이었는데, 이제는 그냥 보는 게 아니라 일본어 공부까지 되네요. 하루 30분, 저를 위한 최고의 투자입니다." }
     ];
 
     return (
@@ -142,7 +147,7 @@ export default function LoginPage() {
                 <section className="text-center max-w-6xl mx-auto px-4">
                     <h1 className="text-4xl md:text-6xl font-extrabold text-gray-900 leading-tight">
                         <span className="block">당신이 좋아하는 YouTube 영상이</span>
-                        <span className="block mt-2"><AuroraText>최고의 영어 교재</AuroraText>가 됩니다.</span>
+                        <span className="block mt-2"><AuroraText>최고의 일본어 교재</AuroraText>가 됩니다.</span>
                     </h1>
                     <button
                         onClick={handleGoogleSignIn}
@@ -215,7 +220,7 @@ export default function LoginPage() {
                             >
                                 <p>{sampleSentence}</p>
                             </div>
-                            <p className="mt-4 text-xs text-gray-400">↑ 위 문장에서 단어를 드래그해보세요.</p>
+                            <p className="mt-4 text-xs text-gray-400">↑ 위 문장에서 표현을 드래그해보세요.</p>
                             {selectedText && tooltipPosition && (
                                 <div
                                     className="fixed z-50 bg-gray-800 text-white text-sm rounded-lg shadow-xl py-2 px-3 max-w-xs transform -translate-x-1/2 -translate-y-full mb-2"
@@ -226,10 +231,10 @@ export default function LoginPage() {
                             )}
                         </AnimatedFeatureCard>
 
-                        <AnimatedFeatureCard title="💬 AI와 실전 스피킹" delay={0.4}>
+                        <AnimatedFeatureCard title="💬 AI와 실전 일본어 회화" delay={0.4}>
                             <p className="text-gray-600 mb-6 text-center leading-relaxed">영상 내용에 대해 AI와 자유롭게 대화하며 배운 표현을 직접 사용하고 연습하세요.</p>
                             <div className="w-full bg-gray-50 p-6 rounded-2xl shadow-inner border border-gray-200 flex flex-col items-center justify-center flex-grow">
-                                <p className="text-gray-500 text-center mb-4">"What was the main point of this video?"</p>
+                                <p className="text-gray-500 text-center mb-4">"この動画の要点は何でしたか？"</p>
                                 <div className="flex justify-center space-x-1 my-4">
                                     {[8, 12, 10, 14, 9].map((h, i) => (
                                         <div key={i} style={{ height: `${h}px`, animationDelay: `${i * 100}ms` }} className={`w-1.5 bg-blue-400 rounded-full animate-pulse`} />
@@ -243,7 +248,7 @@ export default function LoginPage() {
 
                  <section className="text-center pt-12 pb-4 max-w-6xl mx-auto px-4">
                     <h2 className="text-3xl font-bold text-gray-800">
-                        이제, 당신의 영어 학습을 업그레이드할 시간입니다.
+                        이제, 당신의 일본어 학습을 업그레이드할 시간입니다.
                     </h2>
                     <p className="mt-4 text-lg text-gray-600">
                         망설일 필요 없어요. 지금 바로 시작해보세요!
