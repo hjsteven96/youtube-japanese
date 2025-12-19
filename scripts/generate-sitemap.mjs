@@ -13,9 +13,7 @@ function getServiceAccount() {
         const serviceAccountBase64 =
             process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
         if (!serviceAccountBase64) {
-            throw new Error(
-                "Vercel: FIREBASE_SERVICE_ACCOUNT_BASE64 environment variable is not set."
-            );
+            return null;
         }
         const serviceAccountJson = Buffer.from(
             serviceAccountBase64,
@@ -47,6 +45,12 @@ function initializeFirebaseAdminApp() {
     try {
         console.log("Initializing Firebase Admin SDK...");
         const serviceAccount = getServiceAccount();
+        if (!serviceAccount) {
+            console.warn(
+                "FIREBASE_SERVICE_ACCOUNT_BASE64 is not set; skipping Firestore-backed sitemap."
+            );
+            return null;
+        }
         const app = initializeApp({
             credential: cert(serviceAccount),
         });
@@ -65,28 +69,30 @@ async function generateSitemap() {
     // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     // 핵심: getFirestore 함수를 사용하여 선택한 데이터베이스를 명시적으로 지정합니다.
     const dbId = process.env.FIREBASE_DB_ID;
-    const db = dbId ? getFirestore(app, dbId) : getFirestore(app);
+    const db = app ? (dbId ? getFirestore(app, dbId) : getFirestore(app)) : null;
     // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
     const baseUrl = "https://lingto.xyz";
 
-    console.log(
-        `Fetching data for sitemap from '${dbId || "(default)"}' database...`
-    );
-    const analysesSnapshot = await db
-        .collection("videoAnalyses")
-        .orderBy("timestamp", "desc")
-        .get();
+    let dynamicUrls = "";
+    if (db) {
+        console.log(
+            `Fetching data for sitemap from '${dbId || "(default)"}' database...`
+        );
+        const analysesSnapshot = await db
+            .collection("videoAnalyses")
+            .orderBy("timestamp", "desc")
+            .get();
 
-    const dynamicUrls = analysesSnapshot.docs
-        .map((doc) => {
-            const data = doc.data();
-            const lastModified =
-                data.timestamp instanceof Timestamp
-                    ? data.timestamp.toDate().toISOString()
-                    : new Date().toISOString();
+        dynamicUrls = analysesSnapshot.docs
+            .map((doc) => {
+                const data = doc.data();
+                const lastModified =
+                    data.timestamp instanceof Timestamp
+                        ? data.timestamp.toDate().toISOString()
+                        : new Date().toISOString();
 
-            return `
+                return `
       <url>
         <loc>${baseUrl}/analysis/${doc.id}</loc>
         <lastmod>${lastModified}</lastmod>
@@ -94,8 +100,11 @@ async function generateSitemap() {
         <priority>0.8</priority>
       </url>
     `;
-        })
-        .join("");
+            })
+            .join("");
+    } else {
+        console.warn("Skipping dynamic sitemap entries (no Firestore).");
+    }
 
     const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
     <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
@@ -122,7 +131,7 @@ async function generateSitemap() {
     );
 
     console.log(
-        `✅ 정적 sitemap.xml 파일이 public 폴더에 성공적으로 생성되었습니다. (${analysesSnapshot.docs.length}개의 동적 URL 포함)`
+        "✅ 정적 sitemap.xml 파일이 public 폴더에 성공적으로 생성되었습니다."
     );
 }
 
