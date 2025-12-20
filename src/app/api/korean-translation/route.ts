@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { FieldValue } from "firebase-admin/firestore";
+import { getAdminFirestore } from "@/lib/firebase-admin";
 
 const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
 
@@ -185,18 +187,40 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        const adminDb = getAdminFirestore();
+
         // 먼저 Firebase에서 기존 번역 데이터 확인
         try {
-            const docRef = doc(db, "videoAnalyses", videoId);
-            const docSnap = await getDoc(docRef);
-            
-            if (docSnap.exists()) {
-                const existingData = docSnap.data();
-                if (existingData.koreanTranslation) {
-                    console.log(`[TRANSLATION_CACHE] 캐시된 번역 데이터 반환: ${videoId}`);
-                    return NextResponse.json({ 
-                        translation: existingData.koreanTranslation 
-                    });
+            if (adminDb) {
+                const docSnap = await adminDb
+                    .collection("videoAnalyses")
+                    .doc(videoId)
+                    .get();
+                if (docSnap.exists) {
+                    const existingData = docSnap.data();
+                    if (existingData?.koreanTranslation) {
+                        console.log(
+                            `[TRANSLATION_CACHE] 캐시된 번역 데이터 반환(ADMIN): ${videoId}`
+                        );
+                        return NextResponse.json({
+                            translation: existingData.koreanTranslation,
+                        });
+                    }
+                }
+            } else {
+                const docRef = doc(db, "videoAnalyses", videoId);
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    const existingData = docSnap.data();
+                    if (existingData.koreanTranslation) {
+                        console.log(
+                            `[TRANSLATION_CACHE] 캐시된 번역 데이터 반환: ${videoId}`
+                        );
+                        return NextResponse.json({
+                            translation: existingData.koreanTranslation,
+                        });
+                    }
                 }
             }
         } catch (firebaseError) {
@@ -491,14 +515,27 @@ ${chunk.map(seg => `${seg.timestamp} ${seg.text}`).join('\\n')}
 
         const translationData = finalTranslationData;
 
-        // Firebase에 번역 결과 저장
+        // Firebase에 번역 결과 저장 (인증 없이 저장 가능하도록 Admin SDK 사용)
         try {
-            const docRef = doc(db, "videoAnalyses", videoId);
-            await setDoc(docRef, {
-                koreanTranslation: translationData,
-                translationTimestamp: serverTimestamp(),
-            }, { merge: true }); // merge: true로 문서가 없으면 생성, 있으면 업데이트
-            console.log(`[TRANSLATION_SAVE] 번역 결과 Firebase에 저장 완료: ${videoId}`);
+            if (!adminDb) {
+                console.warn(
+                    "[TRANSLATION_SAVE_SKIP] Firebase Admin 설정이 없어 저장을 건너뜁니다."
+                );
+            } else {
+                await adminDb
+                    .collection("videoAnalyses")
+                    .doc(videoId)
+                    .set(
+                        {
+                            koreanTranslation: translationData,
+                            translationTimestamp: FieldValue.serverTimestamp(),
+                        },
+                        { merge: true }
+                    );
+                console.log(
+                    `[TRANSLATION_SAVE] 번역 결과 Firebase에 저장 완료(ADMIN): ${videoId}`
+                );
+            }
         } catch (firebaseSaveError) {
             console.error("Firebase 번역 저장 중 오류:", firebaseSaveError);
             // 저장 실패해도 번역 결과는 반환

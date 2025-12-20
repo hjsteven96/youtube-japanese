@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
 
 interface TranslationData {
     fullTranslation?: string;
@@ -145,6 +145,23 @@ const TranslationTab: React.FC<TranslationTabProps> = ({
                 setTranslationData(data.translation);
                 if (data.translation && onTranslationReady) {
                     onTranslationReady(data.translation);
+                }
+                if (auth.currentUser) {
+                    try {
+                        await setDoc(
+                            doc(db, "videoAnalyses", videoId),
+                            {
+                                koreanTranslation: data.translation,
+                                translationTimestamp: serverTimestamp(),
+                            },
+                            { merge: true }
+                        );
+                    } catch (saveError) {
+                        console.error(
+                            "[TRANSLATION_CACHE_SAVE_ERROR]",
+                            saveError
+                        );
+                    }
                 }
             } catch (err: any) {
                 console.error("Translation error:", err);
