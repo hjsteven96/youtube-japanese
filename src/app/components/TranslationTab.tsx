@@ -67,6 +67,7 @@ const TranslationTab: React.FC<TranslationTabProps> = ({
     const requestState = useRef({
         inFlight: false,
         retryUntilMs: 0,
+        hadRateLimit: false,
     });
 
     useEffect(() => {
@@ -83,7 +84,10 @@ const TranslationTab: React.FC<TranslationTabProps> = ({
             if (translationData) return;
             if (!videoId) return;
             if (requestState.current.inFlight) return;
-            if (Date.now() < requestState.current.retryUntilMs) {
+            if (
+                requestState.current.hadRateLimit &&
+                Date.now() < requestState.current.retryUntilMs
+            ) {
                 setError("요청이 많아 잠시 후 다시 시도해주세요.");
                 return;
             }
@@ -121,9 +125,15 @@ const TranslationTab: React.FC<TranslationTabProps> = ({
                 const data = await response.json();
 
                 if (!response.ok) {
-                    if (typeof data?.retryAfterSeconds === "number") {
-                        requestState.current.retryUntilMs =
-                            Date.now() + data.retryAfterSeconds * 1000;
+                    if (response.status === 429) {
+                        requestState.current.hadRateLimit = true;
+                        if (typeof data?.retryAfterSeconds === "number") {
+                            requestState.current.retryUntilMs =
+                                Date.now() + data.retryAfterSeconds * 1000;
+                        }
+                    } else {
+                        requestState.current.hadRateLimit = false;
+                        requestState.current.retryUntilMs = 0;
                     }
                     throw new Error(data?.error || "번역 요청에 실패했습니다.");
                 }
@@ -134,6 +144,9 @@ const TranslationTab: React.FC<TranslationTabProps> = ({
                 }
             } catch (err: any) {
                 console.error("Translation error:", err);
+                if (!requestState.current.hadRateLimit) {
+                    requestState.current.retryUntilMs = 0;
+                }
                 setError(err.message || "번역 중 오류가 발생했습니다.");
             } finally {
                 setIsLoading(false);
