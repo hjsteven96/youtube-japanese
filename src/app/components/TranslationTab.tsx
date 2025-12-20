@@ -125,6 +125,10 @@ const TranslationTab: React.FC<TranslationTabProps> = ({
                 const data = await response.json();
 
                 if (!response.ok) {
+                    console.error("[TRANSLATION_API_ERROR]", {
+                        status: response.status,
+                        data,
+                    });
                     if (response.status === 429) {
                         requestState.current.hadRateLimit = true;
                         if (typeof data?.retryAfterSeconds === "number") {

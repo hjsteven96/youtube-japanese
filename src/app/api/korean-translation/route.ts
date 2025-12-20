@@ -299,8 +299,16 @@ ${parsedSegments.map(seg => `${seg.timestamp} ${seg.text}`).join('\n')}
             );
 
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(`Gemini API error: ${errorData?.error?.message || response.statusText}`);
+                const errorData = await response.json().catch(() => null);
+                console.error("[GEMINI_TRANSLATION_ERROR]", {
+                    status: response.status,
+                    errorData,
+                });
+                const errorMessage =
+                    errorData?.error?.message || response.statusText;
+                const error = new Error(`Gemini API error: ${errorMessage}`);
+                (error as any).status = response.status;
+                throw error;
             }
 
             const data = await response.json();
@@ -380,8 +388,19 @@ ${chunk.map(seg => `${seg.timestamp} ${seg.text}`).join('\\n')}
                 );
 
                 if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(`Gemini API error for chunk ${chunkIndex}: ${errorData?.error?.message || response.statusText}`);
+                    const errorData = await response.json().catch(() => null);
+                    console.error("[GEMINI_TRANSLATION_ERROR]", {
+                        status: response.status,
+                        errorData,
+                        chunkIndex,
+                    });
+                    const errorMessage =
+                        errorData?.error?.message || response.statusText;
+                    const error = new Error(
+                        `Gemini API error for chunk ${chunkIndex}: ${errorMessage}`
+                    );
+                    (error as any).status = response.status;
+                    throw error;
                 }
 
                 const data = await response.json();
@@ -492,11 +511,9 @@ ${chunk.map(seg => `${seg.timestamp} ${seg.text}`).join('\\n')}
     } catch (error) {
         console.error("Korean translation error:", error);
         const message = error instanceof Error ? error.message : String(error);
+        const status = (error as any)?.status as number | undefined;
         const retryMatch = message.match(/retry in ([0-9.]+)s/i);
-        if (
-            message.toLowerCase().includes("quota") ||
-            message.toLowerCase().includes("rate limit")
-        ) {
+        if (status === 429) {
             return NextResponse.json(
                 {
                     error: "요청이 많아 잠시 후 다시 시도해주세요.",
@@ -509,8 +526,8 @@ ${chunk.map(seg => `${seg.timestamp} ${seg.text}`).join('\\n')}
         }
 
         return NextResponse.json(
-            { error: "한국어 번역 중 오류가 발생했습니다." },
-            { status: 500 }
+            { error: message || "한국어 번역 중 오류가 발생했습니다." },
+            { status: status || 500 }
         );
     }
 }
