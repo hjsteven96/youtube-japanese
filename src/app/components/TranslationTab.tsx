@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 interface TranslationData {
     fullTranslation?: string;
@@ -79,6 +81,7 @@ const TranslationTab: React.FC<TranslationTabProps> = ({
             
             // 이미 번역 데이터가 있으면 API 호출하지 않음
             if (translationData) return;
+            if (!videoId) return;
             if (requestState.current.inFlight) return;
             if (Date.now() < requestState.current.retryUntilMs) {
                 setError("요청이 많아 잠시 후 다시 시도해주세요.");
@@ -90,6 +93,19 @@ const TranslationTab: React.FC<TranslationTabProps> = ({
             requestState.current.inFlight = true;
             
             try {
+                const docRef = doc(db, "videoAnalyses", videoId);
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    const existingData = docSnap.data();
+                    if (existingData.koreanTranslation) {
+                        setTranslationData(existingData.koreanTranslation);
+                        if (onTranslationReady) {
+                            onTranslationReady(existingData.koreanTranslation);
+                        }
+                        return;
+                    }
+                }
+
                 const response = await fetch("/api/korean-translation", {
                     method: "POST",
                     headers: {
@@ -126,7 +142,7 @@ const TranslationTab: React.FC<TranslationTabProps> = ({
         };
 
         fetchTranslation();
-    }, [transcript, videoId, translationData]);
+    }, [analysis, transcript, videoId, translationData, onTranslationReady]);
 
     // 현재 재생 중인 세그먼트를 찾는 로직
     const { activeSegmentIndex } = useMemo(() => {
