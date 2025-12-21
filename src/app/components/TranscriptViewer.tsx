@@ -12,6 +12,7 @@ import { User } from "firebase/auth";
 import { SavedExpression } from "./SavedExpressions";
 import Alert from "./Alert";
 import { ArrowPathIcon } from "@heroicons/react/24/solid";
+import useIsMobile from "@/lib/useIsMobile";
 
 // --- 타입 정의 (변경 없음) ---
 interface VideoSegment {
@@ -85,6 +86,14 @@ const TranscriptViewer = ({
     const [showTooltip, setShowTooltip] = useState(false);
     const [tooltipText, setTooltipText] = useState("");
     const [tooltipStyles, setTooltipStyles] = useState<React.CSSProperties>({});
+    const [selectionRect, setSelectionRect] = useState<{
+        left: number;
+        top: number;
+        right: number;
+        bottom: number;
+        width: number;
+        height: number;
+    } | null>(null);
     const [interpretationResult, setInterpretationResult] = useState<
         string | null
     >(null);
@@ -96,6 +105,7 @@ const TranscriptViewer = ({
         title: "",
         subtitle: "",
     });
+    const isMobile = useIsMobile();
 
     const [tooltipInfo, setTooltipInfo] = useState<{
         visible: boolean;
@@ -260,12 +270,10 @@ const TranscriptViewer = ({
             return;
         }
 
-        const selection = window.getSelection();
-        if (!selection || selection.rangeCount === 0 || !tooltipRef.current)
+        if (!selectionRect || !tooltipRef.current)
             return;
 
-        const range = selection.getRangeAt(0);
-        const rect = range.getBoundingClientRect();
+        const rect = selectionRect;
         const containerRect =
             transcriptContainerRef.current.getBoundingClientRect();
 
@@ -329,13 +337,14 @@ const TranscriptViewer = ({
             opacity: showTooltip ? 1 : 0,
             visibility: showTooltip ? "visible" : "hidden",
         });
-    }, [showTooltip, interpretationResult]);
+    }, [showTooltip, interpretationResult, selectionRect]);
 
     useEffect(() => {
         const handleSelection = () => {
             const selection = window.getSelection();
             if (!selection || !transcriptContainerRef.current) {
                 setShowTooltip(false);
+                setSelectionRect(null);
                 return;
             }
 
@@ -347,8 +356,18 @@ const TranscriptViewer = ({
                 selectedText.length > 0 &&
                 containerNode.contains(selection.anchorNode!)
             ) {
+                const range = selection.getRangeAt(0);
+                const rect = range.getBoundingClientRect();
                 setInterpretationResult(null);
                 setTooltipText(selectedText);
+                setSelectionRect({
+                    left: rect.left,
+                    top: rect.top,
+                    right: rect.right,
+                    bottom: rect.bottom,
+                    width: rect.width,
+                    height: rect.height,
+                });
 
                 const parentElement = selection.anchorNode?.parentElement;
                 const fullSentence =
@@ -358,11 +377,18 @@ const TranscriptViewer = ({
                 setSelectedFullSentenceContext(fullSentence || selectedText);
 
                 setShowTooltip(true);
+
+                if (isMobile) {
+                    setTimeout(() => {
+                        selection.removeAllRanges();
+                    }, 0);
+                }
             } else {
                 if (!isInterpreting) {
                     setShowTooltip(false);
                     setTooltipText("");
                     setInterpretationResult(null);
+                    setSelectionRect(null);
                 }
             }
         };
@@ -379,7 +405,7 @@ const TranscriptViewer = ({
             }
             document.removeEventListener("selectionchange", handleSelection);
         };
-    }, [isInterpreting]);
+    }, [isInterpreting, isMobile]);
 
     const handleLineClick = (index: number) => {
         if (hideButtonTimerRef.current) {
