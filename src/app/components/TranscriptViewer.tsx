@@ -42,6 +42,8 @@ interface TranscriptViewerProps {
         buttons: { text: string; onClick: () => void; isPrimary?: boolean }[];
     }) => void;
     savedExpressions: SavedExpression[];
+    secondaryTextByTime?: Map<number, string>;
+    secondaryFallbackText?: string;
 }
 
 // --- 유틸리티 함수 (변경 없음) ---
@@ -70,6 +72,8 @@ const TranscriptViewer = ({
     savedExpressionsCount,
     onShowAlert,
     savedExpressions,
+    secondaryTextByTime,
+    secondaryFallbackText,
 }: TranscriptViewerProps) => {
     const transcriptContainerRef = useRef<HTMLDivElement>(null);
     const tooltipRef = useRef<HTMLDivElement>(null); // 텍스트 선택(드래그) 툴팁 ref
@@ -599,6 +603,13 @@ const TranscriptViewer = ({
                                 } whitespace-pre-wrap flex-1 text-base`}
                             >
                                 {renderHighlightedText(segment.text)}
+                                {secondaryTextByTime && (
+                                    <span className="block text-sm text-gray-500 mt-1">
+                                        {secondaryTextByTime.get(segment.time) ||
+                                            secondaryFallbackText ||
+                                            ""}
+                                    </span>
+                                )}
                             </span>
                             <button
                                 onClick={(e) => {

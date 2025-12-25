@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
 import TranscriptViewer from "./TranscriptViewer";
 import TranslationTab from "./TranslationTab";
 import { User } from "firebase/auth";
@@ -106,6 +106,42 @@ const AnalysisTabContent = ({
     const [showJapaneseSubtitle, setShowJapaneseSubtitle] = useState(true);
     const [showKoreanSubtitle, setShowKoreanSubtitle] = useState(false);
     const [isTranslationLoading, setIsTranslationLoading] = useState(false);
+    const [translationData, setTranslationData] = useState(
+        props.initialTranslationData || null
+    );
+
+    useEffect(() => {
+        if (props.initialTranslationData) {
+            setTranslationData(props.initialTranslationData);
+        }
+    }, [props.initialTranslationData]);
+
+    const handleTranslationReady = useCallback(
+        (data: any) => {
+            setTranslationData(data);
+            if (props.onTranslationReady) {
+                props.onTranslationReady(data);
+            }
+        },
+        [props.onTranslationReady]
+    );
+
+    const translationByTime = useMemo(() => {
+        const map = new Map<number, string>();
+        if (!translationData?.timelineTranslation) return map;
+        translationData.timelineTranslation.forEach((item: any) => {
+            const match = item.timestamp.match(
+                /\[(?:(\d{1,2}):)?(\d{2}):(\d{2})\]/
+            );
+            if (!match) return;
+            const hours = match[1] ? parseInt(match[1], 10) : 0;
+            const minutes = parseInt(match[2], 10);
+            const seconds = parseInt(match[3], 10);
+            const timeInSeconds = hours * 3600 + minutes * 60 + seconds;
+            map.set(timeInSeconds, item.koreanTranslation);
+        });
+        return map;
+    }, [translationData]);
 
     if (activeTab === "analysis") {
         return (
@@ -313,7 +349,9 @@ const AnalysisTabContent = ({
                 {showJapaneseSubtitle && (
                     <div className="space-y-3">
                         <h3 className="text-sm font-semibold text-gray-600 px-2">
-                            일어 자막
+                            {showKoreanSubtitle
+                                ? "자막 (일어 + 한국어)"
+                                : "일어 자막"}
                         </h3>
                         <TranscriptViewer
                             parsedTranscript={parsedTranscript}
@@ -333,11 +371,21 @@ const AnalysisTabContent = ({
                             savedExpressionsCount={props.savedExpressionsCount} // 추가: savedExpressionsCount 전달
                             onShowAlert={props.onShowAlert} // 추가: onShowAlert 전달
                             savedExpressions={props.savedExpressions || []} // 추가: savedExpressions 전달 (방어 로직 포함)
+                            secondaryTextByTime={
+                                showKoreanSubtitle
+                                    ? translationByTime
+                                    : undefined
+                            }
+                            secondaryFallbackText={
+                                showKoreanSubtitle && isTranslationLoading
+                                    ? "번역 중..."
+                                    : undefined
+                            }
                         />
                     </div>
                 )}
 
-                {showKoreanSubtitle && (
+                {showKoreanSubtitle && !showJapaneseSubtitle && (
                     <div className="space-y-3">
                         <h3 className="text-sm font-semibold text-gray-600 px-2">
                             한국어 자막
@@ -347,11 +395,24 @@ const AnalysisTabContent = ({
                             analysis={analysis}
                             videoId={props.videoId || ""}
                             onSeek={props.onSeek}
-                            initialTranslationData={
-                                props.initialTranslationData
-                            }
+                            initialTranslationData={translationData}
                             currentTime={props.currentTime}
-                            onTranslationReady={props.onTranslationReady}
+                            onTranslationReady={handleTranslationReady}
+                            onLoadingChange={setIsTranslationLoading}
+                        />
+                    </div>
+                )}
+
+                {showKoreanSubtitle && showJapaneseSubtitle && (
+                    <div className="hidden">
+                        <TranslationTab
+                            transcript={transcript}
+                            analysis={analysis}
+                            videoId={props.videoId || ""}
+                            onSeek={props.onSeek}
+                            initialTranslationData={translationData}
+                            currentTime={props.currentTime}
+                            onTranslationReady={handleTranslationReady}
                             onLoadingChange={setIsTranslationLoading}
                         />
                     </div>
