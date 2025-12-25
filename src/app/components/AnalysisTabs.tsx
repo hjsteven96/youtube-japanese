@@ -56,8 +56,8 @@ interface AnalysisTabsProps {
 const AnalysisTabs = (props: AnalysisTabsProps) => {
     // activeTab 상태만 여기서 관리
     const [activeTab, setActiveTab] = useState<
-        "analysis" | "transcript" | "questions" | "translation"
-    >("transcript");
+        "analysis" | "subtitles" | "questions"
+    >("subtitles");
 
     // 기존 useMemo 로직들 제거 (AnalysisTabContent로 이동)
     // const maxSavedWords = useMemo(() => { /* ... */ });

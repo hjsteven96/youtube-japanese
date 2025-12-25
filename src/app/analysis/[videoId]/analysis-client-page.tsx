@@ -115,8 +115,8 @@ function AnalysisPageComponent({
     const [isConversationModeActive, setIsConversationModeActive] =
         useState(false);
     const [activeTab, setActiveTab] = useState<
-        "analysis" | "transcript" | "questions" | "translation"
-    >("transcript");
+        "analysis" | "subtitles" | "questions"
+    >("subtitles");
     const [savedExpressions, setSavedExpressions] = useState<SavedExpression[]>(
         []
     );

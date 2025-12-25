@@ -20,6 +20,7 @@ interface TranslationTabProps {
     initialTranslationData?: TranslationData | null;
     currentTime?: number;
     onTranslationReady?: (data: TranslationData) => void;
+    onLoadingChange?: (isLoading: boolean) => void;
 }
 
 const TranslationSkeleton = () => (
@@ -58,6 +59,7 @@ const TranslationTab: React.FC<TranslationTabProps> = ({
     initialTranslationData,
     currentTime = 0,
     onTranslationReady,
+    onLoadingChange,
 }) => {
     const [translationData, setTranslationData] = useState<TranslationData | null>(initialTranslationData || null);
     const [isLoading, setIsLoading] = useState(false);
@@ -177,6 +179,12 @@ const TranslationTab: React.FC<TranslationTabProps> = ({
 
         fetchTranslation();
     }, [analysis, transcript, videoId, translationData, onTranslationReady]);
+
+    useEffect(() => {
+        if (onLoadingChange) {
+            onLoadingChange(isLoading);
+        }
+    }, [isLoading, onLoadingChange]);
 
     // 현재 재생 중인 세그먼트를 찾는 로직
     const { activeSegmentIndex } = useMemo(() => {

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import TranscriptViewer from "./TranscriptViewer";
 import TranslationTab from "./TranslationTab";
 import { User } from "firebase/auth";
@@ -8,7 +8,7 @@ import SavedExpressions, { SavedExpression } from "./SavedExpressions";
 import { UserProfile } from "@/lib/plans";
 
 interface AnalysisTabContentProps {
-    activeTab: "analysis" | "transcript" | "questions" | "translation";
+    activeTab: "analysis" | "subtitles" | "questions";
     analysis: any;
     transcript: string;
     currentTime: number;
@@ -102,6 +102,10 @@ const AnalysisTabContent = ({
 
         return { parsedTranscript: parsed, activeSegmentIndex: activeIndex };
     }, [transcript, props.currentTime]);
+
+    const [showJapaneseSubtitle, setShowJapaneseSubtitle] = useState(true);
+    const [showKoreanSubtitle, setShowKoreanSubtitle] = useState(false);
+    const [isTranslationLoading, setIsTranslationLoading] = useState(false);
 
     if (activeTab === "analysis") {
         return (
@@ -255,27 +259,104 @@ const AnalysisTabContent = ({
             </div>
         );
     }
-    if (activeTab === "transcript") {
+    if (activeTab === "subtitles") {
         return (
-            <TranscriptViewer
-                parsedTranscript={parsedTranscript}
-                activeSegmentIndex={activeSegmentIndex}
-                onSeek={props.onSeek}
-                videoSummary={analysis.summary} // 추가: analysis.summary 전달
-                user={props.user} // 추가: user 전달
-                youtubeUrl={props.youtubeUrl} // 추가: youtubeUrl 전달
-                onSave={props.onAddExpression} // 추가: onAddExpression 전달
-                onLoopToggle={props.onLoopToggle}
-                isLooping={props.isLooping}
-                currentLoopStartTime={props.currentLoopStartTime}
-                currentLoopEndTime={props.currentLoopEndTime}
-                videoDuration={props.videoDuration}
-                onShowToast={props.onShowToast}
-                maxSavedWords={props.maxSavedWords} // 추가: maxSavedWords 전달
-                savedExpressionsCount={props.savedExpressionsCount} // 추가: savedExpressionsCount 전달
-                onShowAlert={props.onShowAlert} // 추가: onShowAlert 전달
-                savedExpressions={props.savedExpressions || []} // 추가: savedExpressions 전달 (방어 로직 포함)
-            />
+            <div className="md:p-2 space-y-4 text-gray-700">
+                <div className="bg-white p-4 rounded-lg shadow-sm">
+                    <h2 className="text-base font-semibold text-gray-700 mb-3">
+                        자막 표시
+                    </h2>
+                    <div className="flex flex-wrap gap-4">
+                        <label className="flex items-center gap-2 text-sm text-gray-700">
+                            <input
+                                type="checkbox"
+                                className="h-4 w-4"
+                                checked={showJapaneseSubtitle}
+                                onChange={(e) =>
+                                    setShowJapaneseSubtitle(e.target.checked)
+                                }
+                            />
+                            일어 자막 보기
+                        </label>
+                        <label
+                            className={`flex items-center gap-2 text-sm ${
+                                isTranslationLoading
+                                    ? "text-gray-400"
+                                    : "text-gray-700"
+                            }`}
+                        >
+                            <input
+                                type="checkbox"
+                                className="h-4 w-4"
+                                checked={showKoreanSubtitle}
+                                disabled={isTranslationLoading}
+                                onChange={(e) =>
+                                    setShowKoreanSubtitle(e.target.checked)
+                                }
+                            />
+                            한국어 자막 보기
+                            {isTranslationLoading && (
+                                <span className="text-xs text-gray-400">
+                                    (번역 중...)
+                                </span>
+                            )}
+                        </label>
+                    </div>
+                </div>
+
+                {!showJapaneseSubtitle && !showKoreanSubtitle && (
+                    <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg text-sm text-gray-600">
+                        표시할 자막을 선택해주세요.
+                    </div>
+                )}
+
+                {showJapaneseSubtitle && (
+                    <div className="space-y-3">
+                        <h3 className="text-sm font-semibold text-gray-600 px-2">
+                            일어 자막
+                        </h3>
+                        <TranscriptViewer
+                            parsedTranscript={parsedTranscript}
+                            activeSegmentIndex={activeSegmentIndex}
+                            onSeek={props.onSeek}
+                            videoSummary={analysis.summary} // 추가: analysis.summary 전달
+                            user={props.user} // 추가: user 전달
+                            youtubeUrl={props.youtubeUrl} // 추가: youtubeUrl 전달
+                            onSave={props.onAddExpression} // 추가: onAddExpression 전달
+                            onLoopToggle={props.onLoopToggle}
+                            isLooping={props.isLooping}
+                            currentLoopStartTime={props.currentLoopStartTime}
+                            currentLoopEndTime={props.currentLoopEndTime}
+                            videoDuration={props.videoDuration}
+                            onShowToast={props.onShowToast}
+                            maxSavedWords={props.maxSavedWords} // 추가: maxSavedWords 전달
+                            savedExpressionsCount={props.savedExpressionsCount} // 추가: savedExpressionsCount 전달
+                            onShowAlert={props.onShowAlert} // 추가: onShowAlert 전달
+                            savedExpressions={props.savedExpressions || []} // 추가: savedExpressions 전달 (방어 로직 포함)
+                        />
+                    </div>
+                )}
+
+                {showKoreanSubtitle && (
+                    <div className="space-y-3">
+                        <h3 className="text-sm font-semibold text-gray-600 px-2">
+                            한국어 자막
+                        </h3>
+                        <TranslationTab
+                            transcript={transcript}
+                            analysis={analysis}
+                            videoId={props.videoId || ""}
+                            onSeek={props.onSeek}
+                            initialTranslationData={
+                                props.initialTranslationData
+                            }
+                            currentTime={props.currentTime}
+                            onTranslationReady={props.onTranslationReady}
+                            onLoadingChange={setIsTranslationLoading}
+                        />
+                    </div>
+                )}
+            </div>
         );
     }
     if (activeTab === "questions") {
@@ -339,19 +420,6 @@ const AnalysisTabContent = ({
                     )
                 )}
             </div>
-        );
-    }
-    if (activeTab === "translation") {
-        return (
-            <TranslationTab
-                transcript={transcript}
-                analysis={analysis}
-                videoId={props.videoId || ""}
-                onSeek={props.onSeek}
-                initialTranslationData={props.initialTranslationData}
-                currentTime={props.currentTime}
-                onTranslationReady={props.onTranslationReady}
-            />
         );
     }
 
