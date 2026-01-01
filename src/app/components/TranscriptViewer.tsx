@@ -127,6 +127,7 @@ const TranscriptViewer = ({
         x: number;
         y: number;
     } | null>(null);
+    const ignoreSelectionChangeUntilRef = useRef(0);
 
     // 저장된 표현 목록을 렌더링 최적화를 위해 Set으로 변환
     const savedTexts = useMemo(
@@ -379,6 +380,12 @@ const TranscriptViewer = ({
 
     useEffect(() => {
         const handleSelection = () => {
+            if (
+                isMobile &&
+                Date.now() < ignoreSelectionChangeUntilRef.current
+            ) {
+                return;
+            }
             const selection = window.getSelection();
             if (!selection || !transcriptContainerRef.current) {
                 setShowTooltip(false);
@@ -417,12 +424,16 @@ const TranscriptViewer = ({
                 setShowTooltip(true);
 
                 if (isMobile) {
+                    ignoreSelectionChangeUntilRef.current = Date.now() + 600;
                     setTimeout(() => {
                         selection.removeAllRanges();
                     }, 0);
                 }
             } else {
                 if (!isInterpreting) {
+                    if (isMobile && showTooltip) {
+                        return;
+                    }
                     setShowTooltip(false);
                     setTooltipText("");
                     setInterpretationResult(null);
@@ -434,16 +445,18 @@ const TranscriptViewer = ({
         const container = transcriptContainerRef.current;
         if (container) {
             container.addEventListener("mouseup", handleSelection);
+            container.addEventListener("touchend", handleSelection);
             document.addEventListener("selectionchange", handleSelection);
         }
 
         return () => {
             if (container) {
                 container.removeEventListener("mouseup", handleSelection);
+                container.removeEventListener("touchend", handleSelection);
             }
             document.removeEventListener("selectionchange", handleSelection);
         };
-    }, [isInterpreting, isMobile]);
+    }, [isInterpreting, isMobile, showTooltip]);
 
     const handleLineClick = (index: number) => {
         if (hideButtonTimerRef.current) {
