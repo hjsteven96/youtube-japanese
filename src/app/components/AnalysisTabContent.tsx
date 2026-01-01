@@ -393,7 +393,7 @@ const AnalysisTabContent = ({
                                     setShowJapaneseSubtitle(e.target.checked)
                                 }
                             />
-                            일어 자막 보기
+                            일어
                         </label>
                         <label
                             className={`flex items-center gap-2 text-sm ${
@@ -411,7 +411,7 @@ const AnalysisTabContent = ({
                                     setShowKoreanSubtitle(e.target.checked)
                                 }
                             />
-                            한국어 자막 보기
+                            한국어
                             {isTranslationLoading && (
                                 <span className="text-xs text-gray-400">
                                     (번역 중...)
@@ -434,7 +434,7 @@ const AnalysisTabContent = ({
                                     setShowFurigana(e.target.checked)
                                 }
                             />
-                            후리가나 표시
+                            후리가나
                             {showFurigana && isFuriganaLoading && (
                                 <span className="text-xs text-gray-400">
                                     (준비 중...)
