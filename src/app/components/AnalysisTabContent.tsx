@@ -7,6 +7,36 @@ import { User } from "firebase/auth";
 import SavedExpressions, { SavedExpression } from "./SavedExpressions";
 import { UserProfile } from "@/lib/plans";
 
+type FuriganaToken = {
+    surface: string;
+    reading: string | null;
+    hasKanji: boolean;
+};
+
+const parseTranscriptSegments = (rawTranscript: string) => {
+    const safeTranscript = String(rawTranscript || "");
+    if (!safeTranscript.trim()) return [];
+
+    const parsed: { time: number; text: string }[] = [];
+    const regex = /\[(?:(\d{1,2}):)?(\d{2}):(\d{2})\]([^\[]*)/g;
+    const matches = [...safeTranscript.matchAll(regex)];
+
+    for (const match of matches) {
+        const hours = match[1] ? parseInt(match[1], 10) : 0;
+        const minutes = parseInt(match[2], 10);
+        const seconds = parseInt(match[3], 10);
+        const timeInSeconds = hours * 3600 + minutes * 60 + seconds;
+        const text = match[4].trim();
+        if (text) parsed.push({ time: timeInSeconds, text });
+    }
+
+    if (parsed.length === 0 && safeTranscript.trim()) {
+        parsed.push({ time: 0, text: safeTranscript.trim() });
+    }
+
+    return parsed;
+};
+
 interface AnalysisTabContentProps {
     activeTab: "analysis" | "subtitles" | "questions";
     analysis: any;
@@ -71,26 +101,7 @@ const AnalysisTabContent = ({
     ...props
 }: AnalysisTabContentProps) => {
     const { parsedTranscript, activeSegmentIndex } = useMemo(() => {
-        const safeTranscript = String(transcript || "");
-        if (!safeTranscript.trim())
-            return { parsedTranscript: [], activeSegmentIndex: -1 };
-
-        const parsed = [];
-        const regex = /\[(?:(\d{1,2}):)?(\d{2}):(\d{2})\]([^\[]*)/g;
-        const matches = [...safeTranscript.matchAll(regex)];
-
-        for (const match of matches) {
-            const hours = match[1] ? parseInt(match[1], 10) : 0;
-            const minutes = parseInt(match[2], 10);
-            const seconds = parseInt(match[3], 10);
-            const timeInSeconds = hours * 3600 + minutes * 60 + seconds;
-            const text = match[4].trim();
-            if (text) parsed.push({ time: timeInSeconds, text });
-        }
-
-        if (parsed.length === 0 && safeTranscript.trim()) {
-            parsed.push({ time: 0, text: safeTranscript.trim() });
-        }
+        const parsed = parseTranscriptSegments(transcript);
 
         const activeIndex = parsed.findIndex((segment, index) => {
             const nextSegment = parsed[index + 1];
@@ -106,8 +117,19 @@ const AnalysisTabContent = ({
     const [showJapaneseSubtitle, setShowJapaneseSubtitle] = useState(true);
     const [showKoreanSubtitle, setShowKoreanSubtitle] = useState(false);
     const [isTranslationLoading, setIsTranslationLoading] = useState(false);
+    const [showFurigana, setShowFurigana] = useState(false);
+    const [furiganaByTime, setFuriganaByTime] = useState<
+        Map<number, FuriganaToken[]>
+    >(new Map());
+    const [isFuriganaLoading, setIsFuriganaLoading] = useState(false);
+    const [furiganaError, setFuriganaError] = useState("");
     const [translationData, setTranslationData] = useState(
         props.initialTranslationData || null
+    );
+
+    const furiganaSegments = useMemo(
+        () => parseTranscriptSegments(transcript),
+        [transcript]
     );
 
     useEffect(() => {
@@ -115,6 +137,65 @@ const AnalysisTabContent = ({
             setTranslationData(props.initialTranslationData);
         }
     }, [props.initialTranslationData]);
+
+    useEffect(() => {
+        if (!showJapaneseSubtitle && showFurigana) {
+            setShowFurigana(false);
+        }
+    }, [showJapaneseSubtitle, showFurigana]);
+
+    useEffect(() => {
+        setFuriganaByTime(new Map());
+    }, [transcript]);
+
+    useEffect(() => {
+        if (!showFurigana || furiganaSegments.length === 0) return;
+        if (furiganaByTime.size > 0) return;
+
+        let isCancelled = false;
+
+        const fetchFurigana = async () => {
+            setIsFuriganaLoading(true);
+            setFuriganaError("");
+            try {
+                const response = await fetch("/api/furigana", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ segments: furiganaSegments }),
+                });
+
+                if (!response.ok) {
+                    throw new Error("Failed to fetch furigana");
+                }
+
+                const data = await response.json();
+                if (isCancelled) return;
+
+                const map = new Map<number, FuriganaToken[]>();
+                (data.segments || []).forEach(
+                    (segment: { time: number; tokens: FuriganaToken[] }) => {
+                        map.set(segment.time, segment.tokens || []);
+                    }
+                );
+                setFuriganaByTime(map);
+            } catch (error) {
+                console.error("Furigana fetch error:", error);
+                if (!isCancelled) {
+                    setFuriganaError("후리가나 로딩에 실패했습니다.");
+                }
+            } finally {
+                if (!isCancelled) {
+                    setIsFuriganaLoading(false);
+                }
+            }
+        };
+
+        fetchFurigana();
+
+        return () => {
+            isCancelled = true;
+        };
+    }, [showFurigana, furiganaSegments, furiganaByTime.size]);
 
     const handleTranslationReady = useCallback(
         (data: any) => {
@@ -337,7 +418,35 @@ const AnalysisTabContent = ({
                                 </span>
                             )}
                         </label>
+                        <label
+                            className={`flex items-center gap-2 text-sm ${
+                                showJapaneseSubtitle
+                                    ? "text-gray-700"
+                                    : "text-gray-400"
+                            }`}
+                        >
+                            <input
+                                type="checkbox"
+                                className="h-4 w-4"
+                                checked={showFurigana}
+                                disabled={!showJapaneseSubtitle}
+                                onChange={(e) =>
+                                    setShowFurigana(e.target.checked)
+                                }
+                            />
+                            후리가나 표시
+                            {showFurigana && isFuriganaLoading && (
+                                <span className="text-xs text-gray-400">
+                                    (준비 중...)
+                                </span>
+                            )}
+                        </label>
                     </div>
+                    {furiganaError && (
+                        <p className="text-xs text-red-500 mt-2">
+                            {furiganaError}
+                        </p>
+                    )}
                 </div>
 
                 {!showJapaneseSubtitle && !showKoreanSubtitle && (
@@ -381,6 +490,8 @@ const AnalysisTabContent = ({
                                     ? "번역 중..."
                                     : undefined
                             }
+                            showFurigana={showFurigana}
+                            furiganaByTime={furiganaByTime}
                         />
                     </div>
                 )}

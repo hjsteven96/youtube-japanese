@@ -20,6 +20,12 @@ interface VideoSegment {
     text: string;
 }
 
+type FuriganaToken = {
+    surface: string;
+    reading: string | null;
+    hasKanji: boolean;
+};
+
 interface TranscriptViewerProps {
     parsedTranscript: VideoSegment[];
     activeSegmentIndex: number;
@@ -44,6 +50,8 @@ interface TranscriptViewerProps {
     savedExpressions: SavedExpression[];
     secondaryTextByTime?: Map<number, string>;
     secondaryFallbackText?: string;
+    showFurigana?: boolean;
+    furiganaByTime?: Map<number, FuriganaToken[]>;
 }
 
 // --- 유틸리티 함수 (변경 없음) ---
@@ -74,6 +82,8 @@ const TranscriptViewer = ({
     savedExpressions,
     secondaryTextByTime,
     secondaryFallbackText,
+    showFurigana,
+    furiganaByTime,
 }: TranscriptViewerProps) => {
     const transcriptContainerRef = useRef<HTMLDivElement>(null);
     const tooltipRef = useRef<HTMLDivElement>(null); // 텍스트 선택(드래그) 툴팁 ref
@@ -239,6 +249,30 @@ const TranscriptViewer = ({
         },
         [savedExpressions, handleHighlightClick]
     );
+
+    const renderFuriganaTokens = useCallback((tokens: FuriganaToken[]) => {
+        return (
+            <span>
+                {tokens.map((token, index) => {
+                    if (token.hasKanji && token.reading) {
+                        return (
+                            <ruby key={`${token.surface}-${index}`}>
+                                <span>{token.surface}</span>
+                                <rt className="text-[0.6em] leading-none text-gray-500">
+                                    {token.reading}
+                                </rt>
+                            </ruby>
+                        );
+                    }
+                    return (
+                        <span key={`${token.surface}-${index}`}>
+                            {token.surface}
+                        </span>
+                    );
+                })}
+            </span>
+        );
+    }, []);
 
     useEffect(() => {
         if (activeSegmentIndex < 1) return;
@@ -602,7 +636,12 @@ const TranscriptViewer = ({
                                     isCurrent ? "font-normal" : "text-gray-600"
                                 } whitespace-pre-wrap flex-1 text-base`}
                             >
-                                {renderHighlightedText(segment.text)}
+                                {showFurigana &&
+                                furiganaByTime?.get(segment.time)?.length
+                                    ? renderFuriganaTokens(
+                                          furiganaByTime.get(segment.time) || []
+                                      )
+                                    : renderHighlightedText(segment.text)}
                                 {secondaryTextByTime && (
                                     <span className="block text-sm text-gray-500 mt-1">
                                         {secondaryTextByTime.get(segment.time) ||
