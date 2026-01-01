@@ -4,6 +4,9 @@ import { db } from "@/lib/firebase";
 import { FieldValue } from "firebase-admin/firestore";
 import { getAdminFirestore } from "@/lib/firebase-admin";
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
 
 // 번역 세그먼트 인터페이스
