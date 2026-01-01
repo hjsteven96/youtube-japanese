@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import fs from "fs";
 import path from "path";
 import kuromoji from "kuromoji";
 
@@ -19,11 +20,24 @@ let tokenizerPromise:
 
 const buildTokenizer = () => {
     if (!tokenizerPromise) {
+        const publicDictPath = path.join(
+            process.cwd(),
+            "public",
+            "kuromoji-dict"
+        );
+        const nodeModulesDictPath = path.join(
+            process.cwd(),
+            "node_modules",
+            "kuromoji",
+            "dict"
+        );
+        const dicPath = fs.existsSync(publicDictPath)
+            ? publicDictPath
+            : nodeModulesDictPath;
+
         tokenizerPromise = new Promise((resolve, reject) => {
             kuromoji
-                .builder({
-                    dicPath: path.join(process.cwd(), "node_modules/kuromoji/dict"),
-                })
+                .builder({ dicPath })
                 .build((err, tokenizer) => {
                     if (err || !tokenizer) {
                         reject(err || new Error("Failed to build tokenizer"));
